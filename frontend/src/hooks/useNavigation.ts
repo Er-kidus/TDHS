@@ -47,10 +47,10 @@ export function useNavigation() {
     if (history.length > 1) {
       // Go to previous page in history
       const previousEntry = history[1];
-      router.push(previousEntry.path);
+      window.location.href = previousEntry.path;
     } else {
       // Default to dashboard if no history
-      router.push('/dashboard');
+      window.location.href = '/dashboard';
     }
   };
 
@@ -58,7 +58,7 @@ export function useNavigation() {
     if (title) {
       addToHistory(path, title);
     }
-    router.push(path);
+    window.location.href = path;
   };
 
   const getBackPath = (): string => {

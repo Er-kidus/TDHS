@@ -27,7 +27,7 @@ export default function InventoryPage() {
   useEffect(() => {
     // Add current page to navigation history
     addToHistory('/inventory', 'Inventory');
-  }, [addToHistory]);
+  }, []); // Remove addToHistory dependency to prevent infinite loop
 
   useEffect(() => {
     const loadInventory = async () => {

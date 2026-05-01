@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -59,7 +59,6 @@ interface SidebarProps {
 
 export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
   return (
@@ -105,11 +104,9 @@ export function Sidebar({ className }: SidebarProps) {
 }
 
 function SidebarContent({ pathname }: { pathname: string }) {
-  const router = useRouter();
-
   const handleLogout = () => {
     localStorage.removeItem('token');
-    router.push('/');
+    window.location.href = '/';
   };
 
   return (
@@ -131,11 +128,14 @@ function SidebarContent({ pathname }: { pathname: string }) {
           {navigation.map((item) => {
             const isActive = pathname === item.href;
             return (
-              <Link
+              <button
                 key={item.name}
-                href={item.href}
+                onClick={() => {
+                  console.log('Button clicked:', item.name, item.href);
+                  window.location.href = item.href;
+                }}
                 className={cn(
-                  'group flex items-center px-2 py-2 text-sm font-medium rounded-lg transition-colors',
+                  'group flex items-center px-2 py-2 text-sm font-medium rounded-lg transition-colors w-full text-left',
                   isActive
                     ? 'bg-emerald-100 text-emerald-900'
                     : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
@@ -149,7 +149,7 @@ function SidebarContent({ pathname }: { pathname: string }) {
                   aria-hidden="true"
                 />
                 {item.name}
-              </Link>
+              </button>
             );
           })}
         </nav>

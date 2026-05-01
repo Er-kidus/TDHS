@@ -36,10 +36,21 @@ export default function PrescriptionsPage() {
         }
 
         const prescriptionsData = await prescriptionAPI.getPrescriptions();
-        setPrescriptions(prescriptionsData);
+        console.log('Prescriptions data loaded:', prescriptionsData);
+        
+        // Ensure we always set an array
+        if (Array.isArray(prescriptionsData)) {
+          setPrescriptions(prescriptionsData);
+        } else if (prescriptionsData && prescriptionsData.prescriptions && Array.isArray(prescriptionsData.prescriptions)) {
+          setPrescriptions(prescriptionsData.prescriptions);
+        } else {
+          console.warn('Prescriptions data is not in expected format:', prescriptionsData);
+          setPrescriptions([]);
+        }
       } catch (error) {
         console.error('Failed to load prescriptions:', error);
         toast.error('Failed to load prescriptions data');
+        setPrescriptions([]); // Ensure we always have an array
       } finally {
         setLoading(false);
       }
@@ -48,7 +59,7 @@ export default function PrescriptionsPage() {
     loadPrescriptions();
   }, [router]);
 
-  const filteredPrescriptions = prescriptions.filter(prescription => {
+  const filteredPrescriptions = Array.isArray(prescriptions) ? prescriptions.filter(prescription => {
     const matchesSearch = (prescription.patient_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
                          (prescription.drug_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
                          (prescription.prescriber_name?.toLowerCase() || '').includes(searchTerm.toLowerCase());
@@ -56,7 +67,7 @@ export default function PrescriptionsPage() {
     const matchesPriority = filterPriority === 'all' || prescription.priority === filterPriority;
     
     return matchesSearch && matchesStatus && matchesPriority;
-  });
+  }) : [];
 
   const handleStatusUpdate = async (prescriptionId: string, newStatus: PrescriptionStatus) => {
     try {

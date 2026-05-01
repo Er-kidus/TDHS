@@ -44,7 +44,7 @@ export default function LoginPage() {
       
       console.log('Redirecting to dashboard...');
       setLoading(false);
-      router.push('/dashboard');
+      window.location.href = '/dashboard';
     } catch (err: any) {
       console.error('Login error:', err);
       setError(err.response?.data?.error || 'Login failed');

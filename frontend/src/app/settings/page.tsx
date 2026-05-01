@@ -109,7 +109,7 @@ export default function SettingsPage() {
     };
 
     loadUserData();
-  }, [router]);
+  }, []); // Remove router dependency to prevent infinite loop
 
   // Form states
   const [profileForm, setProfileForm] = useState({
@@ -229,7 +229,7 @@ export default function SettingsPage() {
     };
 
     loadUserData();
-  }, [router]);
+  }, []); // Remove router dependency to prevent infinite loop
 
   const handleProfileSave = async () => {
     setSaving(true);

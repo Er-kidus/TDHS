@@ -134,7 +134,7 @@ export default function RegisterPage() {
       sessionStorage.removeItem('register-form');
       
       toast.success('Account created successfully!');
-      router.push('/dashboard');
+      window.location.href = '/dashboard';
     } catch (err: any) {
       let errorMessage = 'Registration failed';
       
