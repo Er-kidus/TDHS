@@ -1,0 +1,10 @@
+{
+  "name": "pharmacy-backend",
+  "version": "1.0.0",
+  "description": "Pharmacy Management Backend API",
+  "main": "basic-server.js",
+  "scripts": {
+    "start": "node basic-server.js",
+    "dev": "node basic-server.js"
+  }
+}

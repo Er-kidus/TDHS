@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: pharmacy-postgres
+    environment:
+      POSTGRES_DB: pharmacy_db
+      POSTGRES_USER: pharmacy_user
+      POSTGRES_PASSWORD: pharmacy_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - pharmacy-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: pharmacy-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - pharmacy-network
+
+  # Go Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pharmacy-backend
+    environment:
+      DATABASE_URL: postgres://pharmacy_user:pharmacy_password@postgres:5432/pharmacy_db?sslmode=disable
+      JWT_SECRET: your-super-secret-jwt-key-change-this-in-production
+      REDIS_URL: redis://redis:6379
+      PORT: 8080
+      ENVIRONMENT: development
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - pharmacy-network
+    volumes:
+      - ./backend:/app
+
+  # Next.js Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pharmacy-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8080/api/v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - pharmacy-network
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  pharmacy-network:
+    driver: bridge
