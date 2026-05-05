@@ -1,0 +1,27 @@
+{
+  "items": [
+    {
+      "id": "eb333e90a76f1e2f8023ebc02fc3bdd8",
+      "patientLogicalId": "p-test-1",
+      "symptoms": [
+        "fever",
+        "cough"
+      ],
+      "redFlags": [],
+      "vitals": {
+        "heartRate": 98,
+        "temperatureC": 37.8
+      },
+      "context": {
+        "chiefComplaint": "fever"
+      },
+      "severity": "moderate",
+      "score": 45,
+      "recommendedAction": "nurse_triage_within_30_min",
+      "suggestions": [
+        "Nurse triage with short-interval reassessment recommended."
+      ],
+      "createdAt": "2026-04-25T11:01:24Z"
+    }
+  ]
+}

@@ -1,0 +1,253 @@
+# Tenadam Backend API and Service Wiring
+
+Generated at: 2026-04-25T11:17:35.978409+00:00
+
+## Gateway Endpoints
+
+- `GET /health` -> `h.Health`
+- `POST /auth/register` -> `h.PatientRegister`
+- `POST /auth/login` -> `h.PatientLogin`
+- `POST /org/auth/register` -> `h.OrgRegister`
+- `POST /org/auth/login` -> `h.OrgLogin`
+- `POST /org/applications` -> `h.OrgSubmitApplication`
+- `GET /org/hospitals` -> `h.OrgListRegisteredHospitals`
+- `GET /organizations` -> `h.OrgListOrganizations`
+- `GET /patients/me` -> `h.RequirePatient(h.GetPatientMe`
+- `PUT /patients/update` -> `h.RequirePatient(h.UpdatePatientMe`
+- `GET /doctors` -> `h.RequirePatient(h.ListDoctors`
+- `GET /prescriptions` -> `h.RequirePatient(h.ListPrescriptions`
+- `GET /lab-results` -> `h.RequirePatient(h.ListLabResults`
+- `GET /billing/invoices` -> `h.RequirePatient(h.ListInvoices`
+- `GET /insurance` -> `h.RequirePatient(h.GetInsurance`
+- `GET /care/chronic` -> `h.RequirePatient(h.ListChronicCare`
+- `GET /care/pregnancy` -> `h.RequirePatient(h.ListPregnancyCare`
+- `GET /care/recurrent-medications` -> `h.RequirePatient(h.ListRecurrentMedications`
+- `GET /messages` -> `h.RequireAny(h.ListMessages`
+- `POST /messages` -> `h.RequireAny(h.CreateMessage`
+- `GET /documents` -> `h.RequirePatient(h.ListDocuments`
+- `POST /documents` -> `h.RequirePatient(h.CreateDocument`
+- `GET /telemedicine/sessions` -> `h.RequirePatient(h.ListTelemedicineSessions`
+- `POST /telemedicine/sessions` -> `h.RequirePatient(h.CreateTelemedicineSession`
+- `POST /telemedicine/livekit/token` -> `h.RequireAny(h.IssueLiveKitToken`
+- `GET /telemedicine/sessions/{id}/transcript-lines` -> `h.RequireAny(h.ListTelemedicineTranscriptLines`
+- `POST /telemedicine/sessions/{id}/transcript-lines` -> `h.RequireAny(h.CreateTelemedicineTranscriptLine`
+- `POST /telemedicine/sessions/{id}/summary` -> `h.RequireAny(h.CreateTelemedicineSummary`
+- `GET /telemedicine/artifacts` -> `h.RequirePatient(h.ListTelemedicineArtifacts`
+- `GET /pharmacy/medications` -> `h.RequirePatient(h.ListPharmacyMedications`
+- `GET /pharmacy/pharmacies` -> `h.RequirePatient(h.ListPharmacies`
+- `GET /pharmacy/orders` -> `h.RequirePatient(h.ListPharmacyOrders`
+- `POST /pharmacy/orders` -> `h.RequirePatient(h.CreatePharmacyOrder`
+- `GET /ai/consent` -> `h.RequirePatient(h.GetAIConsent`
+- `PUT /ai/consent` -> `h.RequirePatient(h.UpsertAIConsent`
+- `POST /ai/learning-samples` -> `h.RequirePatient(h.CreateAILearningSample`
+- `POST /ai/router` -> `h.RequirePatient(h.AIRouter`
+- `POST /appointments` -> `h.RequireAny(h.CreateAppointment`
+- `GET /appointments` -> `h.RequireAny(h.ListAppointments`
+- `GET /appointments/{id}` -> `h.RequireAny(h.GetAppointment`
+- `PUT /appointments/{id}` -> `h.RequireAny(h.UpdateAppointment`
+- `DELETE /appointments/{id}` -> `h.RequireAny(h.DeleteAppointment`
+- `POST /appointments/{id}/assign` -> `h.RequireOrgAnyRole("admin", "superadmin"`
+- `GET /services` -> `h.RequireAny(h.ListServices`
+- `POST /services` -> `h.RequireOrgAnyRole("admin", "superadmin"`
+- `PUT /services/{id}` -> `h.RequireOrgAnyRole("admin", "superadmin"`
+- `DELETE /services/{id}` -> `h.RequireOrgAnyRole("admin", "superadmin"`
+- `GET /resources` -> `h.RequireOrgAnyRole("admin", "superadmin"`
+- `GET /queues` -> `h.RequireOrgAnyRole("admin", "doctor", "nurse", "staff", "superadmin"`
+- `POST /queues/reorder` -> `h.RequireOrgAnyRole("admin", "doctor", "nurse", "staff", "superadmin"`
+- `POST /queues/check-in` -> `h.RequireOrgAnyRole("admin", "doctor", "nurse", "staff", "superadmin"`
+- `GET /org/me` -> `h.RequireOrg(h.OrgMe`
+- `GET /org/me/telemedicine` -> `h.RequireOrgAnyRole("doctor", "nurse"`
+- `PATCH /org/me/telemedicine` -> `h.RequireOrgAnyRole("doctor", "nurse"`
+- `GET /org/configuration/me` -> `h.RequireOrg(h.OrgGetMyOrganizationConfiguration`
+- `GET /org/service-management/me` -> `h.RequireOrg(h.OrgGetMyServiceManagement`
+- `GET /org/application/me` -> `h.RequireOrg(h.OrgMyApplication`
+- `GET /org/staff-role-templates` -> `h.RequireOrgAnyRole("admin", "superadmin"`
+- `POST /org/staff-role-templates` -> `h.RequireOrgRole("superadmin"`
+- `PUT /org/staff-role-templates/{key}` -> `h.RequireOrgRole("superadmin"`
+- `PATCH /org/staff-role-templates/{key}/status` -> `h.RequireOrgRole("superadmin"`
+- `GET /org/applications` -> `h.RequireOrgRole("superadmin"`
+- `GET /org/applications/{id}` -> `h.RequireOrgRole("superadmin"`
+- `PATCH /org/applications/{id}/approve` -> `h.RequireOrgRole("superadmin"`
+- `PATCH /org/applications/{id}/reject` -> `h.RequireOrgRole("superadmin"`
+- `PATCH /org/applications/{id}/services` -> `h.RequireOrgRole("superadmin"`
+- `PATCH /org/applications/{id}/staff-configurations` -> `h.RequireOrgRole("superadmin"`
+- `POST /org/applications/{id}/request-update` -> `h.RequireOrgAnyRole("admin", "superadmin"`
+- `PATCH /org/applications/{id}/resolve-update` -> `h.RequireOrgRole("superadmin"`
+- `PATCH /org/applications/{id}/domain` -> `h.RequireOrgRole("superadmin"`
+- `GET /org/organizations` -> `h.RequireOrgRole("superadmin"`
+- `GET /org/tiers` -> `h.RequireOrgRole("superadmin"`
+- `GET /org/organizations/manage` -> `h.RequireOrgRole("superadmin"`
+- `GET /org/organizations/{id}/configuration` -> `h.RequireOrgAnyRole("admin", "superadmin"`
+- `PUT /org/organizations/{id}/configuration` -> `h.RequireOrgAnyRole("admin", "superadmin"`
+- `GET /org/organizations/{id}/service-management` -> `h.RequireOrgAnyRole("admin", "superadmin"`
+- `PUT /org/organizations/{id}/service-management` -> `h.RequireOrgAnyRole("admin", "superadmin"`
+- `GET /org/organizations/{id}/staff` -> `h.RequireOrgAnyRole("admin", "superadmin"`
+- `POST /org/organizations/{id}/staff` -> `h.RequireOrgAnyRole("admin", "superadmin"`
+- `PUT /org/organizations/{id}/staff/{userId}` -> `h.RequireOrgAnyRole("admin", "superadmin"`
+- `DELETE /org/organizations/{id}/staff/{userId}` -> `h.RequireOrgAnyRole("admin", "superadmin"`
+- `GET /org/patients` -> `h.RequireOrgAnyRole("admin", "doctor", "nurse", "staff", "superadmin"`
+- `GET /org/patients/{id}` -> `h.RequireOrgAnyRole("admin", "doctor", "nurse", "staff", "superadmin"`
+- `GET /org/users` -> `h.RequireOrgRole("superadmin"`
+- `POST /org/users` -> `h.RequireOrgRole("superadmin"`
+- `PUT /org/users/{id}` -> `h.RequireOrgRole("superadmin"`
+- `PUT /org/users/{id}/role` -> `h.RequireOrgRole("superadmin"`
+- `PATCH /org/users/{id}/status` -> `h.RequireOrgRole("superadmin"`
+- `POST /org/users/{id}/reset-password` -> `h.RequireOrgRole("superadmin"`
+- `GET /org/system/overview` -> `h.RequireOrgRole("superadmin"`
+- `GET /org/doctors` -> `h.RequireOrgAnyRole("admin", "doctor", "nurse", "staff", "superadmin"`
+- `POST /org/doctors` -> `h.RequireOrgAnyRole("admin", "superadmin"`
+- `GET /org/pharmacies` -> `h.RequireOrgAnyRole("admin", "superadmin"`
+- `POST /org/pharmacies` -> `h.RequireOrgAnyRole("admin", "superadmin"`
+- `GET /org/telemedicine/artifacts` -> `h.RequireOrgAnyRole("admin", "doctor", "nurse", "staff", "superadmin"`
+- `GET /org/telemedicine/queue` -> `h.RequireOrgAnyRole("admin", "doctor", "nurse", "superadmin"`
+- `POST /org/telemedicine/queue/accept` -> `h.RequireOrgAnyRole("admin", "doctor", "nurse", "superadmin"`
+- `GET /org/ai/models` -> `h.RequireOrgRole("superadmin"`
+- `POST /org/ai/models/train` -> `h.RequireOrgRole("superadmin"`
+- `PUT /org/ai/models/status` -> `h.RequireOrgRole("superadmin"`
+- `GET /org/ai/provider-keys` -> `h.RequireOrgRole("superadmin"`
+- `PUT /org/ai/provider-keys` -> `h.RequireOrgRole("superadmin"`
+- `DELETE /org/ai/provider-keys/{provider}` -> `h.RequireOrgRole("superadmin"`
+
+## Portal Wiring Summary
+
+### Patient Portal Wired
+- `/auth/register`
+- `/auth/login`
+- `/patients/me`
+- `/patients/update`
+- `/appointments`
+- `/appointments/{id}`
+
+### Patient Portal Missing
+
+### Org Portal Wired
+- `/org/auth/login`
+- `/org/patients`
+- `/org/patients/{id}`
+- `/appointments`
+- `/appointments/{id}`
+
+### Org Portal Missing
+
+## Services Inventory
+
+Total services scanned: 118
+
+- `ai/ai-audit-service` (routes=False, migrations=False, files=12)
+- `ai/ai-clinical-decision-support-service` (routes=False, migrations=False, files=12)
+- `ai/ai-diagnosis-support-service` (routes=False, migrations=False, files=12)
+- `ai/ai-nlp-service` (routes=False, migrations=False, files=12)
+- `ai/ai-policy-service` (routes=False, migrations=False, files=12)
+- `ai/ai-population-health-service` (routes=False, migrations=False, files=12)
+- `ai/ai-risk-prediction-service` (routes=False, migrations=False, files=12)
+- `ai/ai-triage-service` (routes=False, migrations=False, files=12)
+- `analytics/analytics-service` (routes=True, migrations=True, files=28)
+- `analytics/audit-analytics-service` (routes=True, migrations=True, files=28)
+- `analytics/dashboard-service` (routes=True, migrations=True, files=28)
+- `analytics/data-quality-service` (routes=True, migrations=True, files=28)
+- `analytics/reporting-service` (routes=True, migrations=True, files=28)
+- `clinical/careplan-service` (routes=True, migrations=True, files=28)
+- `clinical/clinical-data-service` (routes=True, migrations=True, files=28)
+- `clinical/clinical-note-service` (routes=True, migrations=True, files=28)
+- `clinical/document-service` (routes=True, migrations=True, files=28)
+- `clinical/encounter-service` (routes=True, migrations=True, files=28)
+- `clinical/procedure-service` (routes=True, migrations=True, files=28)
+- `clinical-extensions/clinical-guideline-service` (routes=True, migrations=True, files=28)
+- `clinical-extensions/form-response-service` (routes=True, migrations=True, files=28)
+- `clinical-extensions/form-service` (routes=True, migrations=True, files=28)
+- `clinical-extensions/order-service` (routes=True, migrations=True, files=28)
+- `clinical-extensions/order-set-service` (routes=True, migrations=True, files=28)
+- `clinical-extensions/program-enrollment-service` (routes=True, migrations=True, files=28)
+- `clinical-extensions/program-service` (routes=True, migrations=True, files=28)
+- `clinical-extensions/terminology-service` (routes=True, migrations=True, files=28)
+- `communication/messaging-service` (routes=True, migrations=True, files=28)
+- `communication/notification-service` (routes=True, migrations=True, files=28)
+- `communication/ussd-service` (routes=True, migrations=True, files=28)
+- `communication/voice-tts-service` (routes=True, migrations=True, files=28)
+- `core/access-control-service` (routes=True, migrations=True, files=28)
+- `core/audit-service` (routes=True, migrations=True, files=28)
+- `core/auth-service` (routes=True, migrations=True, files=28)
+- `core/configuration-service` (routes=True, migrations=True, files=28)
+- `core/consent-service` (routes=True, migrations=True, files=28)
+- `core/session-service` (routes=True, migrations=True, files=28)
+- `core/user-service` (routes=True, migrations=True, files=28)
+- `diagnostics/imaging-service` (routes=True, migrations=True, files=28)
+- `diagnostics/lab-service` (routes=True, migrations=True, files=28)
+- `diagnostics/lab-workflow-service` (routes=True, migrations=True, files=28)
+- `diagnostics/radiology-workflow-service` (routes=True, migrations=True, files=28)
+- `diagnostics/result-service` (routes=True, migrations=True, files=28)
+- `diagnostics/specimen-service` (routes=True, migrations=True, files=28)
+- `diagnostics/validation-service` (routes=True, migrations=True, files=28)
+- `emergency/ambulance-service` (routes=True, migrations=True, files=28)
+- `emergency/emergency-service` (routes=True, migrations=True, files=28)
+- `emergency/emergency-triage-protocol-service` (routes=True, migrations=True, files=28)
+- `emergency/icu-service` (routes=True, migrations=True, files=28)
+- `emergency/resuscitation-service` (routes=True, migrations=True, files=28)
+- `emergency/triage-service` (routes=True, migrations=True, files=28)
+- `financial/billing-service` (routes=True, migrations=True, files=28)
+- `financial/claim-adjudication-service` (routes=True, migrations=True, files=28)
+- `financial/claims-service` (routes=True, migrations=True, files=28)
+- `financial/insurance-eligibility-service` (routes=True, migrations=True, files=28)
+- `financial/invoicing-service` (routes=True, migrations=True, files=28)
+- `financial/payment-service` (routes=True, migrations=True, files=28)
+- `financial/pricing-service` (routes=True, migrations=True, files=28)
+- `financial/revenue-cycle-service` (routes=True, migrations=True, files=28)
+- `front-door/cmd` (routes=False, migrations=False, files=1)
+- `front-door/data` (routes=False, migrations=False, files=1)
+- `front-door/internal` (routes=False, migrations=False, files=4)
+- `front-door/vendor` (routes=False, migrations=False, files=279)
+- `hospital/admission-discharge-transfer-service` (routes=True, migrations=True, files=28)
+- `hospital/bed-management-service` (routes=True, migrations=True, files=28)
+- `hospital/inpatient-service` (routes=True, migrations=True, files=28)
+- `hospital/nursing-dashboard-service` (routes=True, migrations=True, files=28)
+- `hospital/nursing-service` (routes=True, migrations=True, files=28)
+- `hospital/nursing-task-service` (routes=True, migrations=True, files=28)
+- `hospital/patient-movement-service` (routes=True, migrations=True, files=28)
+- `hospital/shift-handoff-service` (routes=True, migrations=True, files=28)
+- `hospital/ward-service` (routes=True, migrations=True, files=28)
+- `integration/data-mapping-service` (routes=True, migrations=True, files=28)
+- `integration/event-bus-service` (routes=True, migrations=True, files=28)
+- `integration/fhir-service` (routes=True, migrations=True, files=28)
+- `integration/integration-job-service` (routes=True, migrations=True, files=28)
+- `integration/interoperability-service` (routes=True, migrations=True, files=28)
+- `operations/appointment-service` (routes=True, migrations=True, files=28)
+- `operations/check-in-service` (routes=True, migrations=True, files=28)
+- `operations/discharge-planning-service` (routes=True, migrations=True, files=28)
+- `operations/flow-board-service` (routes=True, migrations=True, files=28)
+- `operations/queue-service` (routes=True, migrations=True, files=28)
+- `operations/referral-service` (routes=True, migrations=True, files=28)
+- `operations/scheduling-service` (routes=True, migrations=True, files=28)
+- `pharmacy/dispensing-service` (routes=True, migrations=True, files=28)
+- `pharmacy/drug-formulary-service` (routes=True, migrations=True, files=28)
+- `pharmacy/medication-administration-service` (routes=True, migrations=True, files=28)
+- `pharmacy/medication-service` (routes=True, migrations=True, files=28)
+- `pharmacy/pharmacy-inventory-service` (routes=True, migrations=True, files=28)
+- `pharmacy/prescription-service` (routes=True, migrations=True, files=28)
+- `public-health/national-reporting-service` (routes=True, migrations=True, files=28)
+- `public-health/outbreak-detection-service` (routes=True, migrations=True, files=28)
+- `public-health/program-reporting-service` (routes=True, migrations=True, files=28)
+- `public-health/surveillance-service` (routes=True, migrations=True, files=28)
+- `registry/facility-service` (routes=True, migrations=True, files=28)
+- `registry/household-service` (routes=True, migrations=True, files=28)
+- `registry/identifier-service` (routes=True, migrations=True, files=28)
+- `registry/organization-service` (routes=True, migrations=True, files=28)
+- `registry/patient-service` (routes=True, migrations=True, files=28)
+- `registry/practitioner-service` (routes=True, migrations=True, files=28)
+- `supply-chain/asset-service` (routes=True, migrations=True, files=28)
+- `supply-chain/inventory-service` (routes=True, migrations=True, files=28)
+- `supply-chain/logistics-service` (routes=True, migrations=True, files=28)
+- `supply-chain/procurement-service` (routes=True, migrations=True, files=28)
+- `supply-chain/stock-reconciliation-service` (routes=True, migrations=True, files=28)
+- `supply-chain/vendor-service` (routes=True, migrations=True, files=28)
+- `supply-chain/warehouse-service` (routes=True, migrations=True, files=28)
+- `surgery/post-operative-care-service` (routes=True, migrations=True, files=28)
+- `surgery/surgery-protocol-service` (routes=True, migrations=True, files=28)
+- `surgery/surgery-scheduling-service` (routes=True, migrations=True, files=28)
+- `surgery/surgery-service` (routes=True, migrations=True, files=28)
+- `surgery/theatre-management-service` (routes=True, migrations=True, files=28)
+- `telemedicine/chat-service` (routes=True, migrations=True, files=28)
+- `telemedicine/remote-monitoring-service` (routes=True, migrations=True, files=28)
+- `telemedicine/tele-triage-service` (routes=True, migrations=True, files=28)
+- `telemedicine/teleconsult-service` (routes=True, migrations=True, files=28)
+- `telemedicine/telemedicine-service` (routes=True, migrations=True, files=28)
+- `telemedicine/video-session-service` (routes=True, migrations=True, files=28)

@@ -1,0 +1,159 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Ethiopic:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 200 20% 98%;
+    --foreground: 210 24% 16%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 210 24% 16%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 24% 16%;
+
+    --primary: 187 65% 35%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 200 18% 94%;
+    --secondary-foreground: 210 24% 16%;
+
+    --muted: 200 14% 93%;
+    --muted-foreground: 210 10% 46%;
+
+    --accent: 187 40% 92%;
+    --accent-foreground: 187 65% 25%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 60% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 92% 15%;
+
+    --info: 210 80% 52%;
+    --info-foreground: 0 0% 100%;
+
+    --critical: 0 84% 48%;
+    --critical-foreground: 0 0% 100%;
+
+    --border: 210 16% 89%;
+    --input: 210 16% 89%;
+    --ring: 187 65% 35%;
+
+    --radius: 0.625rem;
+
+    --sidebar-background: 200 24% 96%;
+    --sidebar-foreground: 210 24% 16%;
+    --sidebar-primary: 187 65% 35%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 187 40% 92%;
+    --sidebar-accent-foreground: 187 65% 25%;
+    --sidebar-border: 210 16% 89%;
+    --sidebar-ring: 187 65% 35%;
+
+    --shadow-sm: 0 1px 2px 0 hsl(210 24% 16% / 0.04);
+    --shadow-md: 0 4px 12px -2px hsl(210 24% 16% / 0.06);
+    --shadow-lg: 0 8px 24px -4px hsl(210 24% 16% / 0.08);
+
+    --font-sans: 'Inter', 'Noto Sans Ethiopic', system-ui, sans-serif;
+  }
+
+  .dark {
+    --background: 210 24% 8%;
+    --foreground: 200 14% 93%;
+    --card: 210 24% 11%;
+    --card-foreground: 200 14% 93%;
+    --popover: 210 24% 11%;
+    --popover-foreground: 200 14% 93%;
+    --primary: 187 65% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 18% 18%;
+    --secondary-foreground: 200 14% 93%;
+    --muted: 210 18% 18%;
+    --muted-foreground: 210 10% 58%;
+    --accent: 187 30% 18%;
+    --accent-foreground: 187 50% 70%;
+    --destructive: 0 62% 40%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 50% 35%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 80% 45%;
+    --warning-foreground: 38 92% 90%;
+    --info: 210 70% 48%;
+    --info-foreground: 0 0% 100%;
+    --critical: 0 72% 42%;
+    --critical-foreground: 0 0% 100%;
+    --border: 210 18% 20%;
+    --input: 210 18% 20%;
+    --ring: 187 65% 45%;
+    --sidebar-background: 210 24% 10%;
+    --sidebar-foreground: 200 14% 93%;
+    --sidebar-primary: 187 65% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 187 30% 18%;
+    --sidebar-accent-foreground: 187 50% 70%;
+    --sidebar-border: 210 18% 20%;
+    --sidebar-ring: 187 65% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: var(--font-sans);
+  }
+}
+
+@layer utilities {
+  .medical-gradient {
+    background: linear-gradient(135deg, hsl(187 65% 35%), hsl(187 65% 28%));
+  }
+  .glass-panel {
+    @apply bg-card/80 backdrop-blur-sm border border-border;
+  }
+  .status-pulse {
+    animation: pulse-ring 2s ease-out infinite;
+  }
+  @keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 hsl(152 60% 40% / 0.4); }
+    70% { box-shadow: 0 0 0 8px hsl(152 60% 40% / 0); }
+    100% { box-shadow: 0 0 0 0 hsl(152 60% 40% / 0); }
+  }
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+  .animate-fade-up {
+    animation: fade-up 0.45s ease-out both;
+  }
+  .animate-slow-float {
+    animation: slow-float 5s ease-in-out infinite;
+  }
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes slow-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-4px);
+    }
+  }
+}
