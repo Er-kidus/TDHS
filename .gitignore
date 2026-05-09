@@ -10,11 +10,11 @@ vendor/
 node_modules/
 .next/
 out/
-.env
-.env.local
-.env.*.local
-.env.example
-.env.*.example
+# .env
+# .env.local
+# .env.*.local
+# .env.example
+# .env.*.example
 
 # Python
 __pycache__/
