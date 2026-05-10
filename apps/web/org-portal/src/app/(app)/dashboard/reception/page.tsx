@@ -10,6 +10,8 @@ type Appointment = {
   reason?: string;
   serviceType?: string;
   serviceCategory?: string;
+  facilityId?: string;
+  nearbyHospitalId?: string;
   notes?: string;
 };
 
@@ -65,6 +67,27 @@ function formatStatusLabel(value: string) {
     .join(" ");
 }
 
+function normalizeAppointment(item: unknown): Appointment | null {
+  if (!item || typeof item !== "object") return null;
+  const row = item as Record<string, unknown>;
+  if (typeof row.id !== "string") return null;
+  const patientId = typeof row.patient_id === "string" ? row.patient_id : typeof row.patientId === "string" ? row.patientId : "";
+  const scheduledAt = typeof row.scheduled_at === "string" ? row.scheduled_at : typeof row.scheduledAt === "string" ? row.scheduledAt : "";
+  if (!patientId || !scheduledAt) return null;
+  return {
+    id: row.id,
+    patient_id: patientId,
+    scheduled_at: scheduledAt,
+    status: typeof row.status === "string" ? row.status : "booked",
+    reason: typeof row.reason === "string" ? row.reason : undefined,
+    serviceType: typeof row.serviceType === "string" ? row.serviceType : typeof row.service_type === "string" ? row.service_type : undefined,
+    serviceCategory: typeof row.serviceCategory === "string" ? row.serviceCategory : typeof row.service_category === "string" ? row.service_category : undefined,
+    facilityId: typeof row.facilityId === "string" ? row.facilityId : typeof row.facility_id === "string" ? row.facility_id : undefined,
+    nearbyHospitalId: typeof row.nearbyHospitalId === "string" ? row.nearbyHospitalId : typeof row.nearby_hospital_id === "string" ? row.nearby_hospital_id : undefined,
+    notes: typeof row.notes === "string" ? row.notes : undefined,
+  };
+}
+
 export default function ReceptionDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +118,10 @@ export default function ReceptionDashboardPage() {
       }
 
       const appointmentsPayload = (await appointmentsRes.json().catch(() => [])) as unknown;
-      setAppointments(Array.isArray(appointmentsPayload) ? (appointmentsPayload as Appointment[]) : []);
+      const normalizedAppointments = Array.isArray(appointmentsPayload)
+        ? appointmentsPayload.map((item) => normalizeAppointment(item)).filter((item): item is Appointment => Boolean(item))
+        : [];
+      setAppointments(normalizedAppointments);
 
       if (queuesRes.ok) {
         const queuesPayload = (await queuesRes.json().catch(() => [])) as unknown;
@@ -122,7 +148,10 @@ export default function ReceptionDashboardPage() {
   }, []);
 
   const todayBooked = useMemo(
-    () => appointments.filter((a) => a.status === "booked").sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()),
+    () =>
+      appointments
+        .filter((a) => a.status === "booked" || a.status === "proposed")
+        .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()),
     [appointments]
   );
 
@@ -221,7 +250,7 @@ export default function ReceptionDashboardPage() {
   }
 
   async function startQueue() {
-    const next = bookedAppointmentRows.find((row) => row.appointment.status === "booked");
+    const next = bookedAppointmentRows.find((row) => row.appointment.status === "booked" || row.appointment.status === "proposed");
     if (!next) {
       setError("No booked appointments are available to start queue.");
       return;
@@ -230,7 +259,7 @@ export default function ReceptionDashboardPage() {
   }
 
   async function callNextToTriage() {
-    const next = queueList.find((row) => row.appointment?.status === "booked");
+    const next = queueList.find((row) => row.appointment?.status === "booked" || row.appointment?.status === "proposed");
     if (!next?.appointment) {
       setError("No booked patient is waiting to be sent to triage.");
       return;
@@ -333,7 +362,7 @@ export default function ReceptionDashboardPage() {
                       <span className="rounded-full bg-primary/10 px-2 py-1 text-[11px] text-primary">{formatStatusLabel(entry.status)}</span>
                     </div>
                     <div className="mt-3 flex justify-end">
-                      {appointment?.status === "booked" ? (
+                      {appointment?.status === "booked" || appointment?.status === "proposed" ? (
                         <button onClick={() => void routeAppointment(entry.appointment_id, getRecommendedRoute(appointment))} className="rounded-lg border border-border px-3 py-1.5 text-xs">Route To Service</button>
                       ) : (
                         <span className="text-xs text-muted-foreground">{formatStatusLabel(appointment?.status || "waiting")}</span>

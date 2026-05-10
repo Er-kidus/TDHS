@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ShieldCheck, X } from "lucide-react";
-import { navigationForRole, type OrgRole } from "@/lib/rbac";
+import { navigationForRole, orgNavModeFromPath, type OrgRole } from "@/lib/rbac";
 
 export function AppSidebar({ role, collapsed, mobileOpen, onCloseMobile }: { role: OrgRole; collapsed: boolean; mobileOpen: boolean; onCloseMobile: () => void }) {
   const pathname = usePathname();
-  const nav = navigationForRole(role);
+  const mode = orgNavModeFromPath(pathname, role);
+  const nav = navigationForRole(role, mode);
   const activeHref = [...nav]
     .sort((left, right) => right.href.length - left.href.length)
     .find((item) => pathname === item.href || pathname.startsWith(item.href + "/"))?.href;

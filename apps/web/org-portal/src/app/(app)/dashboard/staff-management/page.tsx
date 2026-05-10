@@ -1,10 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { staffService, type StaffMember, type StaffTemplate, type CreateStaffPayload } from "@/services/staff.service";
 import { mapTemplateRoleToBackendRole } from "@/lib/staff-role-mapping";
 
+function isSameOrganizationStaff(member: StaffMember, currentOrganizationId: string) {
+  const memberOrganizationId = (member.organization_id || "").trim().toLowerCase();
+  return !memberOrganizationId || memberOrganizationId === currentOrganizationId.trim().toLowerCase();
+}
+
+function isManageableStaff(member: StaffMember, currentOrganizationId: string) {
+  const role = member.role?.trim().toLowerCase();
+  return isSameOrganizationStaff(member, currentOrganizationId) && Boolean(member.staff_template_key) && role !== "admin" && role !== "superadmin";
+}
+
 export default function StaffManagementPage() {
+  const defaultStaffPassword = "Reset123!";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -20,6 +31,7 @@ export default function StaffManagementPage() {
     full_name: "",
     email: "",
     staff_template_key: "",
+    password: defaultStaffPassword,
     professional_title: "",
     license_number: "",
     active: true,
@@ -38,6 +50,7 @@ export default function StaffManagementPage() {
     const query = templateSearch.trim().toLowerCase();
     return staffTemplates
       .filter((template) => template.active !== false)
+      .filter((template) => mapTemplateRoleToBackendRole(template.api_role) !== "superadmin")
       .filter((template) => {
         if (!query) return true;
         const mappedRole = mapTemplateRoleToBackendRole(template.api_role);
@@ -60,7 +73,7 @@ export default function StaffManagementPage() {
   /**
    * Load organization and staff data
    */
-  async function loadData() {
+  const loadData = useCallback(async function loadData() {
     setLoading(true);
     setError(null);
     try {
@@ -74,18 +87,18 @@ export default function StaffManagementPage() {
         staffService.getAvailableTemplates(),
       ]);
 
-      setStaff(staffList);
+      setStaff(staffList.filter((member) => isManageableStaff(member, organization_id)));
       setStaffTemplates(templates);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load data");
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     void loadData();
-  }, []);
+  }, [loadData]);
 
   /**
    * Clear success message after 3 seconds
@@ -123,6 +136,7 @@ export default function StaffManagementPage() {
       full_name: "",
       email: "",
       staff_template_key: "",
+      password: defaultStaffPassword,
       professional_title: "",
       license_number: "",
       active: true,
@@ -139,6 +153,7 @@ export default function StaffManagementPage() {
       full_name: member.full_name,
       email: member.email,
       staff_template_key: member.staff_template_key || "",
+      password: defaultStaffPassword,
       professional_title: member.professional_title || "",
       license_number: member.license_number || "",
       active: member.active !== false,
@@ -182,6 +197,7 @@ export default function StaffManagementPage() {
         const payload: CreateStaffPayload = {
           email: form.email.trim().toLowerCase(),
           full_name: form.full_name.trim(),
+          password: form.password,
           staff_template_key: form.staff_template_key,
           professional_title: form.professional_title.trim(),
           license_number: form.license_number.trim(),
@@ -426,6 +442,22 @@ export default function StaffManagementPage() {
                 <p className="mt-1 text-xs text-muted-foreground">Email cannot be changed</p>
               )}
             </div>
+
+            {/* Password */}
+            {!editingStaffId && (
+              <div>
+                <label htmlFor="staff-password" className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Password *
+                </label>
+                <input
+                  id="staff-password"
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => setForm((v) => ({ ...v, password: e.target.value }))}
+                  className="w-full h-9 rounded-lg border border-border bg-background px-3 text-sm"
+                />
+              </div>
+            )}
 
             {/* Staff Template */}
             <div>

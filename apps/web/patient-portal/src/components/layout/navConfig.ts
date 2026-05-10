@@ -49,7 +49,7 @@ export const navItems: NavItem[] = [
   { href: "/telemedicine", label: "Start Session", labelKey: "nav.startSession", icon: Video, modes: ["telemedicine"] },
   { href: "/appointments", label: "Appointments", labelKey: "nav.appointments", icon: CalendarDays, modes: ["care"] },
   { href: "/medical-records", label: "Medical Records", labelKey: "nav.medicalRecords", icon: FileText, modes: ["care"] },
-  { href: "/prescriptions", label: "Prescriptions", labelKey: "nav.prescriptions", icon: ReceiptText, modes: ["care"] },
+  { href: "/prescriptions", label: "Prescriptions", labelKey: "nav.prescriptions", icon: ReceiptText, modes: ["care","pharmacy"] },
   { href: "/lab-results", label: "Lab Results", labelKey: "nav.labResults", icon: FlaskConical, modes: ["care"] },
   { href: "/chronic-care", label: "Chronic Care", labelKey: "nav.chronicCare", icon: BookHeart, modes: ["care"] },
   { href: "/pregnancy", label: "Pregnancy", labelKey: "nav.pregnancy", icon: Baby, modes: ["care"] },
@@ -60,7 +60,7 @@ export const navItems: NavItem[] = [
   { href: "/session-recordings", label: "Session Recordings", labelKey: "nav.sessionRecordings", icon: Clapperboard, modes: ["telemedicine"] },
   { href: "/medications", label: "Medications", labelKey: "nav.medications", icon: Pill, modes: ["pharmacy"] },
   { href: "/health-assistant", label: "Health Assistant", labelKey: "nav.healthAssistant", icon: Brain, modes: ["pharmacy"] },
-  { href: "/ai-assistant", label: "AI Assistant", labelKey: "nav.aiAssistant", icon: Brain, modes: ["care", "telemedicine", "pharmacy"] },
+  { href: "/ai-assistant", label: "AI Assistant", labelKey: "nav.aiAssistant", icon: Brain, modes: ["telemedicine"] },
   { href: "/reports", label: "Reports", labelKey: "nav.reports", icon: BarChart3, modes: ["pharmacy"] },
 ];
 

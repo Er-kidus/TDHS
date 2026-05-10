@@ -16,11 +16,11 @@ export function AuthFrame({ children }: { children: ReactNode }) {
               <p className="text-xs text-muted-foreground">Organization portal</p>
             </div>
           </div>
-          <nav className="flex items-center gap-2 text-sm">
+          {/* <nav className="flex items-center gap-2 text-sm">
             <Link to="/login" className="rounded-lg px-3 py-1.5 hover:bg-muted">Login</Link>
             <Link to="/register" className="rounded-lg px-3 py-1.5 hover:bg-muted">Sign up</Link>
             <Link to="/request-access" className="rounded-lg px-3 py-1.5 hover:bg-muted">Request Access</Link>
-          </nav>
+          </nav> */}
         </div>
       </header>
 

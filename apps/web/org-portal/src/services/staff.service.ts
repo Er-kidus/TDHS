@@ -73,7 +73,13 @@ class StaffService {
     if (!res.ok) throw new Error("Failed to load staff");
     
     const data = await res.json();
-    return Array.isArray(data) ? data : data.data || [];
+    const rows = Array.isArray(data) ? data : data.data || [];
+    return rows.filter((member: StaffMember) => {
+      const memberOrgId = (member.organization_id || "").trim().toLowerCase();
+      const sameOrganization = !memberOrgId || memberOrgId === organizationId.trim().toLowerCase();
+      const role = member.role?.trim().toLowerCase();
+      return sameOrganization && Boolean(member.staff_template_key) && role !== "admin" && role !== "superadmin";
+    });
   }
 
   /**

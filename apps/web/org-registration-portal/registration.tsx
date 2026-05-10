@@ -21,7 +21,6 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
   const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<FormValues>({
@@ -53,7 +52,7 @@ export default function RegisterPage() {
         throw new Error(body?.error || "Unable to create account");
       }
 
-      setSuccess("Account created successfully. You can now sign in with these credentials.");
+      setSuccess("Account created successfully. You can now sign in.");
       form.reset();
     } catch (registerError) {
       setError(registerError instanceof Error ? registerError.message : "Registration failed");
@@ -66,7 +65,6 @@ export default function RegisterPage() {
     <AuthFrame>
       <div className="flex justify-center py-10">
         <div className="w-full max-w-md space-y-6">
-
           <div>
             <h2 className="text-2xl font-semibold">Create Account</h2>
             <p className="text-sm text-muted-foreground">
@@ -78,30 +76,41 @@ export default function RegisterPage() {
           {success && <div className="text-green-600 text-sm">{success}</div>}
 
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <Input label="Full Name" register={form.register("fullName")} />
-              <Input label="Email" register={form.register("email")} />
-              <div>
-                <label className="text-sm">Password</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    className="w-full h-11 border rounded-lg px-3 mt-1 pr-10"
-                    {...form.register("password")}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2"
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
+            <Input label="Full Name" register={form.register("fullName")} />
+            <Input label="Email" register={form.register("email")} />
+            <div>
+              <label className="text-sm">Password</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  className="w-full h-11 border rounded-lg px-3 mt-1 pr-10"
+                  {...form.register("password")}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
+            </div>
 
-              <button className="w-full h-11 bg-primary text-white rounded-lg">
-                {submitting ? "Creating..." : "Create account"}
-              </button>
+            <button 
+              disabled={submitting}
+              className="w-full h-11 bg-primary text-white rounded-lg disabled:opacity-50"
+            >
+              {submitting ? "Creating..." : "Create account"}
+            </button>
           </form>
+
+          {/* SIGN IN LINK AT THE BOTTOM */}
+          <div className="text-center pt-2 text-sm text-muted-foreground">
+            Already have an account?{" "}
+            <a href="/login" className="text-primary font-medium hover:underline">
+              Sign In
+            </a>
+          </div>
         </div>
       </div>
     </AuthFrame>

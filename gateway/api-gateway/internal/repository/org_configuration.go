@@ -674,6 +674,7 @@ func (r *Repository) ListOrganizationStaff(ctx context.Context, organizationID s
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT
 			u.id,
+			sp.organization_id,
 			u.full_name,
 			u.email,
 			u.active,
@@ -689,10 +690,10 @@ func (r *Repository) ListOrganizationStaff(ctx context.Context, organizationID s
 			u.created_at,
 			u.updated_at
 		FROM users u
-		LEFT JOIN org_staff_profiles sp ON sp.user_id = u.id
+		INNER JOIN org_staff_profiles sp ON sp.user_id = u.id AND sp.organization_id = $1
 		LEFT JOIN user_roles ur ON ur.user_id = u.id
 		LEFT JOIN roles ON roles.id = ur.role_id
-		WHERE COALESCE(sp.organization_id, u.organization_id) = $1
+		WHERE LOWER(COALESCE(roles.name, sp.role, 'staff')) NOT IN ('admin', 'superadmin', 'super-admin', 'super_admin')
 		ORDER BY u.created_at DESC
 		LIMIT $2
 	`, organizationID, limit)
@@ -703,7 +704,7 @@ func (r *Repository) ListOrganizationStaff(ctx context.Context, organizationID s
 
 	out := make([]map[string]any, 0)
 	for rows.Next() {
-		var id, fullName, email, role string
+		var id, organizationIDValue, fullName, email, role string
 		var active bool
 		var staffTemplateKey sql.NullString
 		var professionalTitle sql.NullString
@@ -714,7 +715,7 @@ func (r *Repository) ListOrganizationStaff(ctx context.Context, organizationID s
 		var telemedicineCurrency string
 		var telemedicineModesRaw []byte
 		var createdAt, updatedAt time.Time
-		if err := rows.Scan(&id, &fullName, &email, &active, &role, &staffTemplateKey, &professionalTitle, &licenseNumber, &telemedicineEnabled, &telemedicineSpecialty, &telemedicineRate, &telemedicineCurrency, &telemedicineModesRaw, &createdAt, &updatedAt); err != nil {
+		if err := rows.Scan(&id, &organizationIDValue, &fullName, &email, &active, &role, &staffTemplateKey, &professionalTitle, &licenseNumber, &telemedicineEnabled, &telemedicineSpecialty, &telemedicineRate, &telemedicineCurrency, &telemedicineModesRaw, &createdAt, &updatedAt); err != nil {
 			return nil, err
 		}
 		telemedicineModes := []string{"video", "voice", "chat"}
@@ -723,6 +724,7 @@ func (r *Repository) ListOrganizationStaff(ctx context.Context, organizationID s
 		}
 		item := map[string]any{
 			"id":                     id,
+			"organization_id":        organizationIDValue,
 			"full_name":              fullName,
 			"email":                  email,
 			"active":                 active,

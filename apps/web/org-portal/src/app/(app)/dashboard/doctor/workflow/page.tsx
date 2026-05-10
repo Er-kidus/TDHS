@@ -1,1 +1,5 @@
-export { default } from "../page";
+import { DoctorWorkflowClient } from "../_components/DoctorWorkflowClient";
+
+export default function DoctorWorkflowPage() {
+  return <DoctorWorkflowClient />;
+}

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ChevronDown, Menu, Pill, Stethoscope, Tv } from "lucide-react";
-import { type OrgRole } from "@/lib/rbac";
+import { orgNavModeFromPath, type OrgRole } from "@/lib/rbac";
 
 export function AppHeader({ onToggleSidebar, role, showSidebarToggle = true }: { onToggleSidebar: () => void; role: OrgRole; showSidebarToggle?: boolean }) {
   const router = useRouter();
@@ -13,20 +13,24 @@ export function AppHeader({ onToggleSidebar, role, showSidebarToggle = true }: {
 
   const modeItems = useMemo(() => {
     const careHref = role === "doctor" ? "/dashboard/doctor" : "/dashboard/nurse";
-    return [
-      { key: "care", label: "Organization Mode", href: careHref, icon: Stethoscope },
-      { key: "telemedicine", label: "Telemedicine", href: "/dashboard/telemedicine", icon: Tv },
-      { key: "pharmacy", label: "Pharmacy", href: "/dashboard/pharmacy", icon: Pill },
-    ] as const;
+    if (role === "doctor" || role === "nurse") {
+      return [
+        { key: "organization", label: "Organization Mode", href: careHref, icon: Stethoscope },
+        { key: "telemedicine", label: "Telemedicine", href: "/dashboard/telemedicine", icon: Tv },
+      ] as const;
+    }
+    if (role === "pharmacist") {
+      return [{ key: "pharmacy", label: "Pharmacy", href: "/dashboard/pharmacy", icon: Pill }] as const;
+    }
+    return [] as const;
   }, [role]);
 
   const activeMode = useMemo(() => {
-    if (pathname.startsWith("/dashboard/telemedicine")) return modeItems[1];
-    if (pathname.startsWith("/dashboard/pharmacy")) return modeItems[2];
-    return modeItems[0];
-  }, [modeItems, pathname]);
+    const mode = orgNavModeFromPath(pathname, role);
+    return modeItems.find((item) => item.key === mode) ?? modeItems[0];
+  }, [modeItems, pathname, role]);
 
-  const showModeSwitch = role === "doctor" || role === "nurse";
+  const showModeSwitch = modeItems.length > 1;
 
   async function logout() {
     await fetch("/api/org/auth/logout", { method: "POST" });
@@ -55,7 +59,7 @@ export function AppHeader({ onToggleSidebar, role, showSidebarToggle = true }: {
       </div>
 
       <div className="flex items-center gap-2">
-        {showModeSwitch ? (
+        {showModeSwitch && activeMode ? (
           <div className="relative">
             <button
               type="button"

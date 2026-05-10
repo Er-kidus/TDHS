@@ -1,4 +1,11 @@
-export type OrgRole = "superadmin" | "admin" | "doctor" | "nurse" | "staff";
+export type OrgRole = "superadmin" | "admin" | "doctor" | "nurse" | "pharmacist" | "staff";
+export type OrgNavMode = "organization" | "telemedicine" | "pharmacy";
+
+type OrgNavItem = {
+  href: string;
+  label: string;
+  modes?: OrgNavMode[];
+};
 
 export function normalizeOrgRole(value: string | null | undefined): OrgRole {
   const role = (value || "").trim().toLowerCase();
@@ -15,6 +22,9 @@ export function normalizeOrgRole(value: string | null | undefined): OrgRole {
   if (["nurse", "midwife", "triage-nurse", "triage_nurse", "staff-nurse", "staff_nurse", "icu-nurse", "icu_nurse"].includes(role)) {
     return "nurse";
   }
+  if (["pharmacy", "pharmacist", "pharm", "pharm-tech", "pharm_tech", "pharmacy-tech", "pharmacy_tech"].includes(role)) {
+    return "pharmacist";
+  }
   return "staff";
 }
 
@@ -28,9 +38,24 @@ export function roleHomePath(role: OrgRole): string {
       return "/dashboard/doctor";
     case "nurse":
       return "/dashboard/nurse";
+    case "pharmacist":
+      return "/dashboard/pharmacy";
     default:
       return "/dashboard/reception";
   }
+}
+
+export function orgNavModeFromPath(pathname: string, role: OrgRole): OrgNavMode {
+  if (pathname === "/dashboard/telemedicine" || pathname.startsWith("/dashboard/telemedicine/")) {
+    return "telemedicine";
+  }
+  if (pathname === "/dashboard/pharmacy" || pathname.startsWith("/dashboard/pharmacy/")) {
+    return "pharmacy";
+  }
+  if (role === "pharmacist") {
+    return "pharmacy";
+  }
+  return "organization";
 }
 
 export function isPathAllowedForRole(pathname: string, role: OrgRole): boolean {
@@ -71,8 +96,6 @@ export function isPathAllowedForRole(pathname: string, role: OrgRole): boolean {
     return (
       pathname === "/dashboard/doctor" ||
       pathname.startsWith("/dashboard/doctor/") ||
-      pathname === "/dashboard/pharmacy" ||
-      pathname.startsWith("/dashboard/pharmacy/") ||
       pathname === "/dashboard/telemedicine" ||
       pathname.startsWith("/dashboard/telemedicine/") ||
       pathname === "/appointments" ||
@@ -84,8 +107,6 @@ export function isPathAllowedForRole(pathname: string, role: OrgRole): boolean {
     return (
       pathname === "/dashboard/nurse" ||
       pathname.startsWith("/dashboard/nurse/") ||
-      pathname === "/dashboard/pharmacy" ||
-      pathname.startsWith("/dashboard/pharmacy/") ||
       pathname === "/dashboard/telemedicine" ||
       pathname.startsWith("/dashboard/telemedicine/") ||
       pathname === "/appointments" ||
@@ -93,10 +114,20 @@ export function isPathAllowedForRole(pathname: string, role: OrgRole): boolean {
     );
   }
 
+  if (role === "pharmacist") {
+    return pathname === "/dashboard/pharmacy" || pathname.startsWith("/dashboard/pharmacy/") || pathname === "/patients" || pathname.startsWith("/patients/") || pathname === "/settings" || pathname.startsWith("/settings/");
+  }
+
   return pathname === "/dashboard/reception" || pathname.startsWith("/dashboard/reception/") || pathname === "/appointments" || pathname.startsWith("/appointments/");
 }
 
-export function navigationForRole(role: OrgRole): Array<{ href: string; label: string }> {
+function filterNavigationByMode(items: OrgNavItem[], mode?: OrgNavMode): Array<{ href: string; label: string }> {
+  return items
+    .filter((item) => !mode || !item.modes || item.modes.includes(mode))
+    .map(({ href, label }) => ({ href, label }));
+}
+
+export function navigationForRole(role: OrgRole, mode?: OrgNavMode): Array<{ href: string; label: string }> {
   if (role === "superadmin") {
     return [
       { href: "/dashboard/super-admin", label: "Onboarding Queue" },
@@ -123,34 +154,40 @@ export function navigationForRole(role: OrgRole): Array<{ href: string; label: s
   }
 
   if (role === "doctor") {
-    return [
-      { href: "/dashboard/doctor", label: "Organization Dashboard" },
-      { href: "/dashboard/doctor/queue", label: "Queue" },
-      { href: "/dashboard/doctor/workflow", label: "Patient Workflow" },
-      { href: "/dashboard/telemedicine", label: "Telemedicine Home" },
-      { href: "/dashboard/telemedicine/queue", label: "Telemedicine Queue" },
-      { href: "/dashboard/telemedicine/profile", label: "My Telemedicine Profile" },
-      { href: "/dashboard/pharmacy", label: "Pharmacy Dashboard" },
+    return filterNavigationByMode([
+      { href: "/dashboard/doctor", label: "Organization Dashboard", modes: ["organization"] },
+      { href: "/dashboard/doctor/queue", label: "Queue", modes: ["organization"] },
+      { href: "/dashboard/doctor/workflow", label: "Patient Workflow", modes: ["organization"] },
+      { href: "/dashboard/telemedicine", label: "Telemedicine Home", modes: ["telemedicine"] },
+      { href: "/dashboard/telemedicine/queue", label: "Telemedicine Queue", modes: ["telemedicine"] },
+      { href: "/dashboard/telemedicine/profile", label: "My Telemedicine Profile", modes: ["telemedicine"] },
       { href: "/patients", label: "Patients" },
       { href: "/appointments", label: "Appointments" },
       { href: "/settings", label: "Settings" },
-    ];
+    ], mode);
   }
 
   if (role === "nurse") {
-    return [
-      { href: "/dashboard/nurse", label: "Nurse Dashboard" },
-      { href: "/dashboard/nurse/triage", label: "Triage Board" },
-      { href: "/dashboard/nurse/triage/history", label: "Triage History" },
-      { href: "/dashboard/nurse/triage/protocols", label: "Triage Protocols" },
-      { href: "/dashboard/telemedicine", label: "Telemedicine Home" },
-      { href: "/dashboard/telemedicine/queue", label: "Telemedicine Queue" },
-      { href: "/dashboard/telemedicine/profile", label: "My Telemedicine Profile" },
-      { href: "/dashboard/pharmacy", label: "Pharmacy Dashboard" },
+    return filterNavigationByMode([
+      { href: "/dashboard/nurse", label: "Nurse Dashboard", modes: ["organization"] },
+      { href: "/dashboard/nurse/triage", label: "Triage Board", modes: ["organization"] },
+      { href: "/dashboard/nurse/triage/history", label: "Triage History", modes: ["organization"] },
+      { href: "/dashboard/nurse/triage/protocols", label: "Triage Protocols", modes: ["organization"] },
+      { href: "/dashboard/telemedicine", label: "Telemedicine Home", modes: ["telemedicine"] },
+      { href: "/dashboard/telemedicine/queue", label: "Telemedicine Queue", modes: ["telemedicine"] },
+      { href: "/dashboard/telemedicine/profile", label: "My Telemedicine Profile", modes: ["telemedicine"] },
       { href: "/patients", label: "Patients" },
       { href: "/appointments", label: "Appointments" },
       { href: "/settings", label: "Settings" },
-    ];
+    ], mode);
+  }
+
+  if (role === "pharmacist") {
+    return filterNavigationByMode([
+      { href: "/dashboard/pharmacy", label: "Pharmacy Dashboard", modes: ["pharmacy"] },
+      { href: "/patients", label: "Patients" },
+      { href: "/settings", label: "Settings" },
+    ], mode);
   }
 
   return [
