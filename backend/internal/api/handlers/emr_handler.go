@@ -4,22 +4,25 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
+	"pharmacy-backend/internal/database"
 	"pharmacy-backend/internal/models"
 	"pharmacy-backend/internal/services"
-	"pharmacy-backend/internal/database"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type EMRHandler struct {
-	emrService    *services.EMRService
+	db                  *database.DB
+	emrService          *services.EMRService
 	prescriptionService *services.PrescriptionService
 }
 
 func NewEMRHandler(db *database.DB) *EMRHandler {
 	return &EMRHandler{
-		emrService:    services.NewEMRService("", ""), // Will be configured per EMR system
-		prescriptionService: services.NewPrescriptionService(db),
+		db:                  db,
+		emrService:          services.NewEMRService("", ""), // Will be configured per EMR system
+		prescriptionService: services.NewPrescriptionService(db.SQLDB()),
 	}
 }
 
@@ -160,7 +163,7 @@ func (h *EMRHandler) SyncPrescription(c *gin.Context) {
 	}
 
 	// Get prescription from database
-	prescription, err := h.prescriptionService.GetPrescription(prescriptionID)
+	prescription, err := h.prescriptionService.GetPrescriptionByID(prescriptionID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Prescription not found"})
 		return
@@ -189,8 +192,13 @@ func (h *EMRHandler) SyncPrescription(c *gin.Context) {
 	// Create EMR service with system-specific configuration
 	emrService := services.NewEMRService(emrConfig.BaseURL, emrConfig.APIKey)
 
+	prescriptionItems := make([]models.PrescriptionItem, len(items))
+	for i, item := range items {
+		prescriptionItems[i] = *item
+	}
+
 	// Sync prescription to EMR
-	err = emrService.CreatePrescription(prescription, items)
+	err = emrService.CreatePrescription(prescription, prescriptionItems)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to sync prescription: " + err.Error()})
 		return
@@ -217,7 +225,7 @@ func (h *EMRHandler) UpdatePrescriptionStatus(c *gin.Context) {
 	}
 
 	// Get prescription from database
-	prescription, err := h.prescriptionService.GetPrescription(prescriptionID)
+	prescription, err := h.prescriptionService.GetPrescriptionByID(prescriptionID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Prescription not found"})
 		return
@@ -248,7 +256,7 @@ func (h *EMRHandler) UpdatePrescriptionStatus(c *gin.Context) {
 
 	// Also update status in local database
 	prescription.Status = models.PrescriptionStatus(req.Status)
-	err = h.prescriptionService.UpdatePrescription(prescriptionID, prescription)
+	err = h.prescriptionService.UpdatePrescription(prescription)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update local prescription: " + err.Error()})
 		return
@@ -266,8 +274,7 @@ func (h *EMRHandler) TestConnection(c *gin.Context) {
 	}
 
 	// Get EMR system from database
-	db := database.NewDB()
-	emrSystem, err := db.GetEMRSystem(emrSystemID)
+	emrSystem, err := h.db.GetEMRSystem(emrSystemID.String())
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "EMR system not found"})
 		return
@@ -308,8 +315,7 @@ func (h *EMRHandler) GetIntegrationLogs(c *gin.Context) {
 	}
 
 	// Get logs from database
-	db := database.NewDB()
-	logs, err := db.GetEMRIntegrationLogs(emrSystemID, limit, offset)
+	logs, err := h.db.GetEMRIntegrationLogs(emrSystemID.String(), limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get integration logs"})
 		return

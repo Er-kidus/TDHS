@@ -1,21 +1,23 @@
 package api
 
 import (
-	"database/sql"
-
-	"github.com/gin-gonic/gin"
 	"pharmacy-backend/internal/api/handlers"
 	"pharmacy-backend/internal/api/middleware"
+	"pharmacy-backend/internal/database"
 	"pharmacy-backend/internal/services"
+
+	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(router *gin.Engine, db *sql.DB) {
+func SetupRoutes(router *gin.Engine, db *database.DB) {
+	sqlDB := db.SQLDB()
+
 	// Initialize services
-	userService := services.NewUserService(db)
-	pharmacyService := services.NewPharmacyService(db)
-	medicationService := services.NewMedicationService(db)
-	prescriptionService := services.NewPrescriptionService(db)
-	inventoryService := services.NewInventoryService(db)
+	userService := services.NewUserService(sqlDB)
+	pharmacyService := services.NewPharmacyService(sqlDB)
+	medicationService := services.NewMedicationService(sqlDB)
+	prescriptionService := services.NewPrescriptionService(sqlDB)
+	inventoryService := services.NewInventoryService(sqlDB)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userService)

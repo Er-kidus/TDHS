@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sidebar } from '@/components/ui/Sidebar';
+import { Sidebar } from '@/components/layout/Sidebar';
 import { AdaptiveTable } from '@/components/ui/ResponsiveTable';
-import { PDFExportUtility } from '@/components/ui/PDFExport';
+import { PDFExportUtility } from '@/components/features/PDFExport';
 import { toast } from '@/components/ui/Toast';
 import { Search, Plus, Filter, Download, QrCode, Clock, CheckCircle, XCircle, AlertTriangle, FileText } from 'lucide-react';
-import { prescriptionAPI } from '@/lib/api';
+import { prescriptionAPI } from '@/lib/api/api';
 import { Prescription, PrescriptionStatus } from '@/types';
-import { PageHeader } from '@/components/ui/Breadcrumbs';
+import { PageHeader } from '@/components/layout/Breadcrumbs';
 import { useNavigation } from '@/hooks/useNavigation';
 
 export default function PrescriptionsPage() {
@@ -124,6 +124,11 @@ export default function PrescriptionsPage() {
       console.error('Failed to generate QR PDF:', error);
       toast.error('Failed to generate QR code PDF');
     }
+  };
+
+  const handleNewPrescription = () => {
+    // In a real app, this would open a modal to create a new prescription
+    toast.info('Manual Prescription feature coming soon - typically synced from EMR');
   };
 
   const getStatusIcon = (status: string) => {
@@ -372,7 +377,10 @@ export default function PrescriptionsPage() {
                     <Download className="w-4 h-4 mr-2" />
                     Export PDF
                   </button>
-                  <button className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+                  <button 
+                    onClick={handleNewPrescription}
+                    className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                  >
                     <Plus className="w-4 h-4 mr-2" />
                     New Prescription
                   </button>

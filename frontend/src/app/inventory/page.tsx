@@ -2,16 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sidebar } from '@/components/ui/Sidebar';
-import { InventoryStatus, CompactInventoryStatus } from '@/components/ui/InventoryStatus';
+import { Sidebar } from '@/components/layout/Sidebar';
+import { InventoryStatus, CompactInventoryStatus } from '@/components/features/InventoryStatus';
 import { AdaptiveTable } from '@/components/ui/ResponsiveTable';
-import { PDFExport } from '@/components/ui/PDFExport';
+import { PDFExportUtility } from '@/components/features/PDFExport';
 import { toast } from '@/components/ui/Toast';
 import { Search, Plus, Filter, Download, AlertTriangle, Package, TrendingUp, Package as PackageIcon } from 'lucide-react';
-import { inventoryAPI } from '@/lib/api';
+import { inventoryAPI } from '@/lib/api/api';
 import { Inventory, InventoryWithMedication } from '@/types';
-import { AddInventoryModal } from '@/components/ui/AddInventoryModal';
-import { PageHeader } from '@/components/ui/Breadcrumbs';
+import { AddInventoryModal } from '@/components/features/AddInventoryModal';
+import { PageHeader } from '@/components/layout/Breadcrumbs';
 import { useNavigation } from '@/hooks/useNavigation';
 
 export default function InventoryPage() {

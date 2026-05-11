@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, User, Phone, Calendar, MapPin, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/utils';
 import { toast } from '@/components/ui/Toast';
-import { debounce } from '@/lib/utils';
+import { debounce } from '@/lib/utils/utils';
+import { emrAPI } from '@/lib/api/emr';
 
 interface Patient {
   id: string;
@@ -10,10 +11,10 @@ interface Patient {
   first_name: string;
   last_name: string;
   phone: string;
-  email: string;
+  email?: string;
   date_of_birth: string;
   address: string;
-  city: string;
+  city?: string;
   blood_type: string;
   last_visit: string;
 }
@@ -40,13 +41,18 @@ export function CommandPalette({ isOpen, onClose, onSelectPatient }: CommandPale
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/v1/emr/patients/search?q=${encodeURIComponent(searchQuery)}`);
-      if (response.ok) {
-        const data = await response.json();
-        setResults(data.patients || []);
-      } else {
-        setResults([]);
-      }
+      // Use emrAPI from lib for consistent data fetching
+      const patients = await emrAPI.searchPatients(searchQuery);
+      
+      // Filter the mock data locally to simulate a real search
+      const filtered = patients.filter(p => 
+        p.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.national_id.includes(searchQuery) ||
+        p.phone.includes(searchQuery)
+      );
+      
+      setResults(filtered);
     } catch (error) {
       console.error('Search error:', error);
       setResults([]);
@@ -260,15 +266,15 @@ export function useCommandPalette() {
   // Global keyboard shortcut (Ctrl+K or Cmd+K)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        setIsOpen(!isOpen);
+        setIsOpen(prev => !prev);
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return {
     isOpen,

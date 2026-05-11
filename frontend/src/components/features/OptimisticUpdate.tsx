@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { CheckCircle, Clock, AlertCircle, Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils/utils';
 import { toast } from '@/components/ui/Toast';
 
 interface OptimisticUpdateProps {

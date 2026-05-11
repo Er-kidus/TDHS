@@ -2,13 +2,13 @@ package handlers
 
 import (
 	"net/http"
-	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"pharmacy-backend/internal/models"
 	"pharmacy-backend/internal/services"
 	"pharmacy-backend/internal/utils"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type PrescriptionHandler struct {
@@ -35,13 +35,13 @@ type CreatePrescriptionItem struct {
 }
 
 type UpdatePrescriptionRequest struct {
-	PatientID   *string `json:"patient_id"`
-	DoctorID    *string `json:"doctor_id"`
-	PharmacyID  *string `json:"pharmacy_id"`
+	PatientID      *string `json:"patient_id"`
+	DoctorID       *string `json:"doctor_id"`
+	PharmacyID     *string `json:"pharmacy_id"`
 	DatePrescribed *string `json:"date_prescribed"`
-	DateFilled  *string `json:"date_filled"`
-	Status      *string `json:"status" binding:"omitempty,oneof=pending filled partially_filled cancelled expired"`
-	Notes       *string `json:"notes"`
+	DateFilled     *string `json:"date_filled"`
+	Status         *string `json:"status" binding:"omitempty,oneof=pending filled partially_filled cancelled expired"`
+	Notes          *string `json:"notes"`
 }
 
 func NewPrescriptionHandler(prescriptionService *services.PrescriptionService) *PrescriptionHandler {

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sidebar } from '@/components/ui/Sidebar';
+import { Sidebar } from '@/components/layout/Sidebar';
 import { toast } from '@/components/ui/Toast';
 import { 
   User as UserIcon,
@@ -23,9 +23,10 @@ import {
   LogOut,
   Settings
 } from 'lucide-react';
-import { authAPI } from '@/lib/api';
+import { authAPI } from '@/lib/api/api';
 import { User, UserRole } from '@/types';
-import { PageHeader } from '@/components/ui/Breadcrumbs';
+import { PageHeader } from '@/components/layout/Breadcrumbs';
+import { logoutToParentSystem } from '@/lib/api/integration';
 import { useNavigation } from '@/hooks/useNavigation';
 
 interface ExtendedUser extends User {
@@ -181,6 +182,12 @@ export default function SettingsPage() {
   ]);
 
   const [faqOpen, setFaqOpen] = useState<string | null>(null);
+
+  const [contactForm, setContactForm] = useState({
+    subject: '',
+    email: '',
+    message: ''
+  });
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -368,6 +375,97 @@ export default function SettingsPage() {
       toast.success('Support ticket created successfully');
     } catch (error) {
       toast.error('Failed to create support ticket');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpgradePlan = async () => {
+    setSaving(true);
+    try {
+      // Simulate API call to upgrade plan
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      setBillingInfo(prev => ({
+        ...prev,
+        plan: prev.plan === 'professional' ? 'enterprise' : 'professional'
+      }));
+      toast.success('Plan upgraded successfully');
+    } catch (error) {
+      toast.error('Failed to upgrade plan');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdatePayment = async () => {
+    setSaving(true);
+    try {
+      // Simulate API call to update payment method
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      toast.success('Payment method updated successfully');
+    } catch (error) {
+      toast.error('Failed to update payment method');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDownloadInvoices = async () => {
+    setSaving(true);
+    try {
+      // Simulate API call to download invoices
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Create a mock invoice download
+      const invoiceContent = {
+        invoices: [
+          { id: 'INV-001', date: billingInfo.next_billing_date, amount: 1450, status: 'paid' },
+          { id: 'INV-002', date: '2024-04-25', amount: 1450, status: 'paid' }
+        ]
+      };
+      
+      const blob = new Blob([JSON.stringify(invoiceContent, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'invoices.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      toast.success('Invoices downloaded successfully');
+    } catch (error) {
+      toast.error('Failed to download invoices');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleContactSubmit = async () => {
+    if (!contactForm.subject || !contactForm.email || !contactForm.message) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+    
+    setSaving(true);
+    try {
+      // Simulate API call to send contact message
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Add as support ticket
+      const newTicket = {
+        id: `TK-${String(supportTickets.length + 1).padStart(3, '0')}`,
+        subject: contactForm.subject,
+        status: 'open',
+        date: new Date().toISOString().split('T')[0]
+      };
+      
+      setSupportTickets(prev => [newTicket, ...prev]);
+      setContactForm({ subject: '', email: '', message: '' });
+      toast.success('Message sent successfully');
+    } catch (error) {
+      toast.error('Failed to send message');
     } finally {
       setSaving(false);
     }
@@ -831,14 +929,26 @@ export default function SettingsPage() {
                           </label>
 
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">API Rate Limit (requests/hour)</label>
-                            <input
+                            <label
+                            onCli k={handceUpgrldePlan}
+                            diaabled={saving}
+                            classsName="block text-sm font-medium text-gray-700 mb-2">API Rate Limit (reque disabled:opacity-50s
+                          ts/hour)</label>
+                            {saving ? 'Processing...' : '<input'}
                               type="number"
-                              value={systemSettings.api_rate_limit}
-                              onChange={(e) => setSystemSettings(prev => ({ ...prev, api_rate_limit: parseInt(e.target.value) }))}
+                              val 
+                           uonCliek={hand=eUpdateP{yment}
+                            disabled={yaving}
+                            classstemSettings.api_rate_limit}ay-50 disabled:opcit
+                          
+                            {saving ? 'Processing...' : '  onChange={(e) => se'}tSystemSettings(prev => ({ ...prev, api_rate_limit: parseInt(e.target.value) }))}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
+                            /> 
+                           onClik={handleDownodInvoice}
+                            disabled={saving}
+                            clas disabled:opacity-50
+                          
+                            {saving ? 'Downloading...'<:/'div>'}
 
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Session Timeout (minutes)</label>
@@ -894,21 +1004,31 @@ export default function SettingsPage() {
                         <div className="space-y-4">
                           <div>
                             <div className="flex items-center justify-between mb-2">
+                            value={contactForm.subject}
+                            onChange={(e) => setContactForm(prev => ({ ...prev, subject: e.target.value }))}
                               <span className="text-sm text-gray-600">Prescriptions</span>
                               <span className="text-sm font-medium text-gray-900">
                                 {billingInfo.usage_stats.prescriptions_used} / {billingInfo.usage_stats.prescriptions_limit}
                               </span>
                             </div>
+                            value={contactForm.email}
+                            onChange={(e) => setContactForm(prev => ({ ...prev, email: e.target.value }))}
                             <div className="w-full bg-gray-200 rounded-full h-2">
                               <div
                                 className="bg-blue-600 h-2 rounded-full"
                                 style={{ width: `${(billingInfo.usage_stats.prescriptions_used / billingInfo.usage_stats.prescriptions_limit) * 100}%` }}
                               />
                             </div>
-                          </div>
+                          value={conta<tForm.message}
+                          onChange={(e) => setContactForm(prev => ({ ...prev, message: e.target.value }))}
+                          c/div>
 
-                          <div>
-                            <div className="flex items-center justify-between mb-2">
+                          <div> 
+                         onClik={handeContctSubmit}
+                          diabled={aving}
+                          class disabled:opacity-50
+                        
+                          {saving ? 'Sending...' : '  <div class'}Name="flex items-center justify-between mb-2">
                               <span className="text-sm text-gray-600">Storage (GB)</span>
                               <span className="text-sm font-medium text-gray-900">
                                 {billingInfo.usage_stats.storage_used} / {billingInfo.usage_stats.storage_limit}

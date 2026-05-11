@@ -1,21 +1,53 @@
 package database
 
 import (
+	"pharmacy-backend/internal/models"
+	"strings"
+
 	"database/sql"
-	"fmt"
 
 	_ "github.com/lib/pq"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"pharmacy-backend/internal/models"
 )
 
 type DB struct {
 	*gorm.DB
 }
 
+func (db *DB) SQLDB() *sql.DB {
+	sqlDB, _ := db.DB.DB()
+	return sqlDB
+}
+
 func Initialize(databaseURL string) (*DB, error) {
-	db, err := gorm.Open(postgres.Open(databaseURL), &gorm.Config{})
+	var db *gorm.DB
+	var err error
+
+	// Detect database type from URL
+	if strings.HasPrefix(databaseURL, "postgres://") || strings.HasPrefix(databaseURL, "postgresql://") {
+		// Use PostgreSQL
+		db, err = gorm.Open(postgres.Open(databaseURL), &gorm.Config{})
+	} else {
+		// Use SQLite (default for local development)
+		db, err = gorm.Open(sqlite.Open(databaseURL), &gorm.Config{})
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Auto-migrate models
+	err = db.AutoMigrate(
+		&models.User{},
+		&models.Pharmacy{},
+		&models.Medication{},
+		&models.Prescription{},
+		&models.Inventory{},
+		&models.EMRSystem{},
+		&models.EMRIntegrationLog{},
+	)
 	if err != nil {
 		return nil, err
 	}

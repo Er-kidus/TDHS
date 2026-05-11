@@ -4,12 +4,13 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"pharmacy-backend/internal/api/middleware"
 	"pharmacy-backend/internal/models"
 	"pharmacy-backend/internal/services"
+
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 type AuthHandler struct {
@@ -22,17 +23,17 @@ type LoginRequest struct {
 }
 
 type RegisterRequest struct {
-	Email     string `json:"email" binding:"required,email"`
-	Password  string `json:"password" binding:"required,min=6"`
-	FirstName string `json:"first_name" binding:"required"`
-	LastName  string `json:"last_name" binding:"required"`
-	Phone     string `json:"phone"`
-	Role      string `json:"role" binding:"required,oneof=admin pharmacist technician doctor patient"`
+	Email      string  `json:"email" binding:"required,email"`
+	Password   string  `json:"password" binding:"required,min=6"`
+	FirstName  string  `json:"first_name" binding:"required"`
+	LastName   string  `json:"last_name" binding:"required"`
+	Phone      string  `json:"phone"`
+	Role       string  `json:"role" binding:"required,oneof=admin pharmacist technician doctor patient"`
 	PharmacyID *string `json:"pharmacy_id"`
 }
 
 type AuthResponse struct {
-	Token string      `json:"token"`
+	Token string       `json:"token"`
 	User  *models.User `json:"user"`
 }
 
@@ -122,11 +123,11 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	// Create user
 	user := &models.User{
 		Email:        req.Email,
-		PasswordHash: hashedPassword,
+		PasswordHash: string(hashedPassword),
 		FirstName:    req.FirstName,
 		LastName:     req.LastName,
 		Phone:        &req.Phone,
-		Role:         models.Role(req.Role),
+		Role:         models.UserRole(req.Role),
 		PharmacyID:   pharmacyID,
 	}
 
@@ -172,7 +173,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	}
 
 	tokenString := strings.Replace(authHeader, "Bearer ", "", 1)
-	
+
 	// Get JWT secret from environment
 	jwtSecret := c.GetString("jwt_secret")
 	if jwtSecret == "" {

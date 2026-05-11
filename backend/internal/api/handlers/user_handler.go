@@ -2,12 +2,12 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
+
+	"pharmacy-backend/internal/models"
+	"pharmacy-backend/internal/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"pharmacy-backend/internal/models"
-	"pharmacy-backend/internal/services"
 )
 
 type UserHandler struct {
@@ -93,7 +93,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		user.Phone = req.Phone
 	}
 	if req.Role != nil {
-		user.Role = models.Role(*req.Role)
+		user.Role = models.UserRole(*req.Role)
 	}
 	if req.PharmacyID != nil {
 		if *req.PharmacyID == "" {

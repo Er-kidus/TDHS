@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/utils';
 import {
   LayoutDashboard,
   Package,
@@ -13,6 +13,7 @@ import {
   Menu,
   X,
 } from 'lucide-react';
+import { logoutToParentSystem } from '@/lib/api/integration';
 
 const navigation = [
   {

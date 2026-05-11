@@ -12,7 +12,7 @@ import {
   AreaChart,
 } from 'recharts';
 import { TrendingUp, DollarSign, Calendar } from 'lucide-react';
-import { cn, formatCurrency } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils/utils';
 
 interface SalesData {
   date: string;

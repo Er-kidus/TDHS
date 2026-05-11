@@ -2,14 +2,14 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"pharmacy-backend/internal/models"
 	"pharmacy-backend/internal/services"
 	"pharmacy-backend/internal/utils"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type InventoryHandler struct {
@@ -17,15 +17,15 @@ type InventoryHandler struct {
 }
 
 type CreateInventoryRequest struct {
-	PharmacyID    string  `json:"pharmacy_id" binding:"required"`
-	MedicationID  string  `json:"medication_id" binding:"required"`
-	QuantityOnHand int    `json:"quantity_on_hand" binding:"required,min=0"`
-	ReorderLevel  int     `json:"reorder_level"`
-	UnitCost      *float64 `json:"unit_cost"`
-	SellingPrice  *float64 `json:"selling_price"`
-	ExpiryDate    *string `json:"expiry_date"`
-	BatchNumber   *string `json:"batch_number"`
-	Supplier      *string `json:"supplier"`
+	PharmacyID     string   `json:"pharmacy_id" binding:"required"`
+	MedicationID   string   `json:"medication_id" binding:"required"`
+	QuantityOnHand int      `json:"quantity_on_hand" binding:"required,min=0"`
+	ReorderLevel   int      `json:"reorder_level"`
+	UnitCost       *float64 `json:"unit_cost"`
+	SellingPrice   *float64 `json:"selling_price"`
+	ExpiryDate     *string  `json:"expiry_date"`
+	BatchNumber    *string  `json:"batch_number"`
+	Supplier       *string  `json:"supplier"`
 }
 
 type UpdateInventoryRequest struct {
@@ -48,7 +48,7 @@ func NewInventoryHandler(inventoryService *services.InventoryService) *Inventory
 
 func (h *InventoryHandler) GetInventory(c *gin.Context) {
 	pharmacyIDStr := c.Query("pharmacy_id")
-	
+
 	if pharmacyIDStr == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "pharmacy_id query parameter is required"})
 		return
@@ -212,7 +212,7 @@ func (h *InventoryHandler) DeleteInventoryItem(c *gin.Context) {
 
 func (h *InventoryHandler) GetLowStockItems(c *gin.Context) {
 	pharmacyIDStr := c.Query("pharmacy_id")
-	
+
 	if pharmacyIDStr == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "pharmacy_id query parameter is required"})
 		return

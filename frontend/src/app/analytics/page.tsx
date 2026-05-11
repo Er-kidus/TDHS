@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sidebar } from '@/components/ui/Sidebar';
+import { Sidebar } from '@/components/layout/Sidebar';
 import { SalesTrendChart, generateMockSalesData } from '@/components/charts/SalesTrendChart';
 import { DrugCategoryChart, generateMockCategoryData } from '@/components/charts/DrugCategoryChart';
 import { toast } from '@/components/ui/Toast';
 import { Download, Calendar, TrendingUp, TrendingDown, DollarSign, Users, Package, Activity, Filter, BarChart3 } from 'lucide-react';
-import { cn, formatCurrency } from '@/lib/utils';
-import { PageHeader } from '@/components/ui/Breadcrumbs';
+import { cn, formatCurrency } from '@/lib/utils/utils';
+import { PageHeader } from '@/components/layout/Breadcrumbs';
 import { useNavigation } from '@/hooks/useNavigation';
 
 interface AnalyticsData {

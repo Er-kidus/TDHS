@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Search } from 'lucide-react';
 import { toast } from '@/components/ui/Toast';
-import { inventoryAPI, medicationAPI } from '@/lib/api';
+import { inventoryAPI, medicationAPI } from '@/lib/api/api';
 import { Medication, InventoryWithMedication } from '@/types';
 
 interface AddInventoryModalProps {

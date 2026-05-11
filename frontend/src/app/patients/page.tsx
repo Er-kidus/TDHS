@@ -2,14 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sidebar } from '@/components/ui/Sidebar';
-import { CommandPalette, useCommandPalette } from '@/components/ui/CommandPalette';
+import { Sidebar } from '@/components/layout/Sidebar';
+import { CommandPalette, useCommandPalette } from '@/components/features/CommandPalette';
 import { AdaptiveTable } from '@/components/ui/ResponsiveTable';
-import { PDFExport } from '@/components/ui/PDFExport';
+import { PDFExportUtility as PDFExport } from '@/components/features/PDFExport';
 import { toast } from '@/components/ui/Toast';
+import { cn } from '@/lib/utils/utils';
 import { Search, Plus, Filter, Download, User, Calendar, Phone, Mail, MapPin, Heart, Activity, AlertTriangle, Users } from 'lucide-react';
-import { authAPI, emrAPI } from '@/lib/api';
-import { PageHeader } from '@/components/ui/Breadcrumbs';
+import { authAPI } from '@/lib/api/api';
+import { emrAPI } from '@/lib/api/emr';
+import { PageHeader } from '@/components/layout/Breadcrumbs';
 import { useNavigation } from '@/hooks/useNavigation';
 
 interface Patient {
@@ -21,6 +23,7 @@ interface Patient {
   phone: string;
   email?: string;
   address: string;
+  city?: string;
   blood_type: string;
   allergies: string[];
   chronic_conditions: string[];
@@ -43,6 +46,7 @@ export default function PatientsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCondition, setFilterCondition] = useState('all');
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const router = useRouter();
   const { goBack, getBackPath, addToHistory } = useNavigation();
   
@@ -81,7 +85,9 @@ export default function PatientsPage() {
   }, [router]);
 
   // Handle patient selection from command palette
-  const handlePatientSelect = (patient: Patient) => {
+  const handlePatientSelect = (selectedPatientData: any) => {
+    // Cast to internal Patient type
+    const patient = selectedPatientData as Patient;
     setSelectedPatient(patient);
     toast.success(`Selected patient: ${patient.first_name} ${patient.last_name}`);
     closeCommandPalette();
@@ -99,42 +105,27 @@ export default function PatientsPage() {
   });
 
   const handleExportPDF = () => {
-    const pdfContent = `
-      <div style="padding: 20px; font-family: Arial, sans-serif;">
-        <h1 style="color: #1f2937; margin-bottom: 20px;">Patients Report</h1>
-        <p style="color: #6b7280; margin-bottom: 20px;">Generated on ${new Date().toLocaleDateString()}</p>
-        <table style="width: 100%; border-collapse: collapse;">
-          <thead>
-            <tr style="background-color: #f3f4f6;">
-              <th style="padding: 10px; text-align: left; border: 1px solid #e5e7eb;">Name</th>
-              <th style="padding: 10px; text-align: left; border: 1px solid #e5e7eb;">National ID</th>
-              <th style="padding: 10px; text-align: left; border: 1px solid #e5e7eb;">Phone</th>
-              <th style="padding: 10px; text-align: left; border: 1px solid #e5e7eb;">Blood Type</th>
-              <th style="padding: 10px; text-align: left; border: 1px solid #e5e7eb;">Last Visit</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${filteredPatients.map(patient => `
-              <tr>
-                <td style="padding: 10px; border: 1px solid #e5e7eb;">${patient.first_name} ${patient.last_name}</td>
-                <td style="padding: 10px; border: 1px solid #e5e7eb;">${patient.national_id}</td>
-                <td style="padding: 10px; border: 1px solid #e5e7eb;">${patient.phone}</td>
-                <td style="padding: 10px; border: 1px solid #e5e7eb;">${patient.blood_type}</td>
-                <td style="padding: 10px; border: 1px solid #e5e7eb;">${new Date(patient.last_visit).toLocaleDateString()}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    `;
+    // Format patient data for the inventory-style report structure expected by PDFExportUtility
+    const exportData = {
+      pharmacyName: 'MedCore Pro Pharmacy',
+      period: `Patients List - ${new Date().toLocaleDateString()}`,
+      items: filteredPatients.map(p => ({
+        name: `${p.first_name} ${p.last_name}`,
+        stock: p.total_prescriptions, // Reusing stock field for prescriptions count
+        reorderLevel: 0,
+        unitPrice: 0,
+        expiryDate: p.last_visit
+      })),
+      totalValue: 0
+    };
 
-    const pdfExport = new PDFExport({
-      title: 'Patients Report',
-      content: pdfContent,
-      filename: `patients-report-${new Date().toISOString().split('T')[0]}.pdf`
-    });
-
+    const pdfExport = new PDFExport(exportData, 'inventory');
     pdfExport.generatePDF();
+  };
+
+  const handleNewPatient = () => {
+    // In a real app, this would open a modal or navigate to a creation page
+    toast.info('New Patient feature coming soon - currently integrated via EMR sync');
   };
 
   const getAge = (dateOfBirth: string) => {
@@ -150,15 +141,15 @@ export default function PatientsPage() {
 
   const patientColumns = [
     {
-      key: 'first_name',
+      key: 'first_name' as keyof Patient,
       header: 'Patient',
-      render: (value: string, item: Patient) => (
+      render: (value: any, item: Patient) => (
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
             <User className="w-5 h-5 text-blue-600" />
           </div>
           <div>
-            <div className="font-medium text-gray-900">{value} {item.last_name}</div>
+            <div className="font-medium text-gray-900">{item.first_name} {item.last_name}</div>
             <div className="text-sm text-gray-500">ID: {item.national_id}</div>
             <div className="text-xs text-gray-400">Age: {getAge(item.date_of_birth)}</div>
           </div>
@@ -166,7 +157,7 @@ export default function PatientsPage() {
       )
     },
     {
-      key: 'contact_info',
+      key: 'phone' as keyof Patient,
       header: 'Contact',
       render: (value: any, item: Patient) => (
         <div>
@@ -184,7 +175,7 @@ export default function PatientsPage() {
       )
     },
     {
-      key: 'medical_info',
+      key: 'blood_type' as keyof Patient,
       header: 'Medical Info',
       render: (value: any, item: Patient) => (
         <div>
@@ -207,27 +198,30 @@ export default function PatientsPage() {
       )
     },
     {
-      key: 'chronic_conditions',
+      key: 'chronic_conditions' as keyof Patient,
       header: 'Conditions',
-      render: (value: string[]) => (
-        <div className="flex flex-wrap gap-1">
-          {value.slice(0, 2).map((condition, index) => (
-            <span key={index} className="px-2 py-1 text-xs bg-amber-100 text-amber-800 rounded-full">
-              {condition}
-            </span>
-          ))}
-          {value.length > 2 && (
-            <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
-              +{value.length - 2} more
-            </span>
-          )}
-        </div>
-      )
+      render: (value: any) => {
+        const conditions = value as string[];
+        return (
+          <div className="flex flex-wrap gap-1">
+            {conditions.slice(0, 2).map((condition, index) => (
+              <span key={index} className="px-2 py-1 text-xs bg-amber-100 text-amber-800 rounded-full">
+                {condition}
+              </span>
+            ))}
+            {conditions.length > 2 && (
+              <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
+                +{conditions.length - 2} more
+              </span>
+            )}
+          </div>
+        );
+      }
     },
     {
-      key: 'last_visit',
+      key: 'last_visit' as keyof Patient,
       header: 'Last Visit',
-      render: (value: string) => (
+      render: (value: any) => (
         <div>
           <div className="text-sm">{new Date(value).toLocaleDateString()}</div>
           <div className="text-xs text-gray-500">
@@ -237,19 +231,22 @@ export default function PatientsPage() {
       )
     },
     {
-      key: 'active_medications',
+      key: 'active_medications' as keyof Patient,
       header: 'Medications',
-      render: (value: string[]) => (
-        <div>
-          <div className="text-sm font-medium">{value.length} active</div>
-          {value.length > 0 && (
-            <div className="text-xs text-gray-500">
-              {value[0]}
-              {value.length > 1 && ` +${value.length - 1} more`}
-            </div>
-          )}
-        </div>
-      )
+      render: (value: any) => {
+        const medications = value as string[];
+        return (
+          <div>
+            <div className="text-sm font-medium">{medications.length} active</div>
+            {medications.length > 0 && (
+              <div className="text-xs text-gray-500">
+                {medications[0]}
+                {medications.length > 1 && ` +${medications.length - 1} more`}
+              </div>
+            )}
+          </div>
+        );
+      }
     }
   ];
 
@@ -303,7 +300,10 @@ export default function PatientsPage() {
                     <Download className="w-4 h-4 mr-2" />
                     Export PDF
                   </button>
-                  <button className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+                  <button 
+                    onClick={handleNewPatient}
+                    className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                  >
                     <Plus className="w-4 h-4 mr-2" />
                     New Patient
                   </button>
@@ -404,12 +404,53 @@ export default function PatientsPage() {
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <button className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                  <button 
+                    onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+                    className={cn(
+                      "flex items-center px-3 py-2 border rounded-lg transition-colors",
+                      isFiltersOpen ? "bg-blue-50 border-blue-200 text-blue-700" : "border-gray-300 hover:bg-gray-50"
+                    )}
+                  >
                     <Filter className="w-4 h-4 mr-2" />
-                    More Filters
+                    {isFiltersOpen ? 'Hide Filters' : 'More Filters'}
                   </button>
                 </div>
               </div>
+
+              {/* Expanded Filters */}
+              {isFiltersOpen && (
+                <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-4 animate-in slide-in-from-top-2">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 uppercase mb-2">Blood Type</label>
+                    <div className="flex flex-wrap gap-2">
+                      {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(type => (
+                        <button
+                          key={type}
+                          className="px-3 py-1 text-xs border border-gray-200 rounded-full hover:bg-blue-50 hover:border-blue-200"
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 uppercase mb-2">Last Visit</label>
+                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                      <option>Anytime</option>
+                      <option>Last 30 days</option>
+                      <option>Last 90 days</option>
+                      <option>Over 6 months ago</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 uppercase mb-2">Medication Count</label>
+                    <div className="flex items-center space-x-2">
+                      <input type="range" className="flex-1" min="0" max="10" />
+                      <span className="text-sm text-gray-600">0-10</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

@@ -39,98 +39,37 @@ api.interceptors.response.use(
 // Auth API
 export const authAPI = {
   login: async (data: LoginRequest): Promise<AuthResponse> => {
-    try {
-      const response: AxiosResponse<AuthResponse> = await api.post('/auth/login', data);
-      return response.data;
-    } catch (error: any) {
-      // Mock authentication for testing when backend is not available
-      if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
-        console.log('Backend not available, using mock authentication for testing');
-        
-        // Mock user data based on email
-        const mockUser = {
-          id: '1',
-          email: data.email,
-          first_name: 'Test',
-          last_name: 'User',
-          role: (data.email.includes('admin') ? 'admin' : 
-                data.email.includes('doctor') ? 'doctor' : 
-                data.email.includes('pharmacist') ? 'pharmacist' : 'patient') as 'admin' | 'pharmacist' | 'technician' | 'doctor' | 'patient',
-          phone: '+251911234567',
-          is_active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-        
-        return {
-          token: 'mock-token-' + Date.now(),
-          user: mockUser
-        };
-      }
-      throw error;
+    const response: AxiosResponse<AuthResponse> = await api.post('/auth/login', data);
+    // Store user data in localStorage for getProfile to use
+    if (typeof window !== 'undefined' && response.data.user) {
+      localStorage.setItem('user', JSON.stringify(response.data.user));
     }
+    return response.data;
   },
 
   register: async (data: RegisterRequest): Promise<AuthResponse> => {
-    try {
-      const response: AxiosResponse<AuthResponse> = await api.post('/auth/register', data);
-      return response.data;
-    } catch (error: any) {
-      // Mock registration for testing when backend is not available
-      if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
-        console.log('Backend not available, using mock registration for testing');
-        
-        // Mock user data based on registration data
-        const mockUser = {
-          id: '1',
-          email: data.email,
-          first_name: data.first_name,
-          last_name: data.last_name,
-          role: (data.role || 'patient') as 'admin' | 'pharmacist' | 'technician' | 'doctor' | 'patient',
-          phone: data.phone || '+251911234567',
-          is_active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-        
-        return {
-          token: 'mock-token-' + Date.now(),
-          user: mockUser
-        };
-      }
-      throw error;
+    const response: AxiosResponse<AuthResponse> = await api.post('/auth/register', data);
+    // Store user data in localStorage for getProfile to use
+    if (typeof window !== 'undefined' && response.data.user) {
+      localStorage.setItem('user', JSON.stringify(response.data.user));
     }
+    return response.data;
   },
 
   refreshToken: async (): Promise<AuthResponse> => {
     const response: AxiosResponse<AuthResponse> = await api.post('/auth/refresh');
+    if (typeof window !== 'undefined' && response.data.user) {
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
     return response.data;
   },
 
   getProfile: async (): Promise<User> => {
-    try {
-      const response: AxiosResponse<User> = await api.get('/users/profile');
-      return response.data;
-    } catch (error: any) {
-      // Mock profile for testing when backend is not available
-      if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
-        console.log('Backend not available, using mock profile for testing');
-        
-        // Return a mock user profile
-        return {
-          id: '1',
-          email: 'test@example.com',
-          first_name: 'Test',
-          last_name: 'User',
-          role: 'pharmacist' as 'admin' | 'pharmacist' | 'technician' | 'doctor' | 'patient',
-          phone: '+251911234567',
-          is_active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-      }
-      throw error;
+    const response: AxiosResponse<User> = await api.get('/users/profile');
+    if (typeof window !== 'undefined' && response.data) {
+      localStorage.setItem('user', JSON.stringify(response.data));
     }
+    return response.data;
   },
 };
 
@@ -214,53 +153,8 @@ export const medicationAPI = {
 // Prescription API
 export const prescriptionAPI = {
   getPrescriptions: async (): Promise<Prescription[]> => {
-    try {
-      const response: AxiosResponse<Prescription[]> = await api.get('/prescriptions');
-      return response.data;
-    } catch (error: any) {
-      // Mock prescriptions for testing when backend is not available
-      if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
-        console.log('Backend not available, using mock prescriptions for testing');
-        
-        return [
-          {
-            id: '1',
-            prescription_number: 'RX001',
-            patient_id: '1',
-            patient_name: 'John Doe',
-            doctor_id: '1',
-            prescriber_name: 'Dr. Smith',
-            pharmacy_id: '1',
-            drug_name: 'Amoxicillin',
-            dosage: '500mg',
-            quantity: 30,
-            priority: 'medium' as 'high' | 'medium' | 'low',
-            notes: 'Take twice daily with food',
-            status: 'pending' as 'pending' | 'filled' | 'partially_filled' | 'cancelled' | 'expired',
-            date_prescribed: new Date().toISOString(),
-            created_at: new Date().toISOString()
-          },
-          {
-            id: '2',
-            prescription_number: 'RX002',
-            patient_id: '2',
-            patient_name: 'Jane Smith',
-            doctor_id: '2',
-            prescriber_name: 'Dr. Johnson',
-            pharmacy_id: '1',
-            drug_name: 'Lisinopril',
-            dosage: '10mg',
-            quantity: 60,
-            priority: 'low' as 'high' | 'medium' | 'low',
-            notes: 'Take once daily in the morning',
-            status: 'filled' as 'pending' | 'filled' | 'partially_filled' | 'cancelled' | 'expired',
-            date_prescribed: new Date().toISOString(),
-            created_at: new Date().toISOString()
-          }
-        ];
-      }
-      throw error;
-    }
+    const response: AxiosResponse<Prescription[]> = await api.get('/prescriptions');
+    return response.data;
   },
 
   getPrescription: async (id: string): Promise<Prescription> => {
@@ -321,47 +215,10 @@ export const inventoryAPI = {
   },
 
   getLowStockItems: async (pharmacyId: string): Promise<Inventory[]> => {
-    try {
-      const response: AxiosResponse<Inventory[]> = await api.get('/inventory/low-stock', {
-        params: { pharmacy_id: pharmacyId }
-      });
-      return response.data;
-    } catch (error: any) {
-      // Mock low stock items for testing when backend is not available
-      if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
-        console.log('Backend not available, using mock low stock items for testing');
-        
-        return [
-          {
-            id: '1',
-            medication_id: 'MED001',
-            pharmacy_id: pharmacyId,
-            quantity_on_hand: 5,
-            reorder_level: 20,
-            unit_cost: 15.50,
-            selling_price: 25.00,
-            expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            batch_number: 'BATCH001',
-            supplier: 'Pharma Supply Co.',
-            last_updated: new Date().toISOString()
-          },
-          {
-            id: '2',
-            medication_id: 'MED002',
-            pharmacy_id: pharmacyId,
-            quantity_on_hand: 8,
-            reorder_level: 25,
-            unit_cost: 22.75,
-            selling_price: 35.00,
-            expiry_date: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-            batch_number: 'BATCH002',
-            supplier: 'Medical Distributors Ltd.',
-            last_updated: new Date().toISOString()
-          }
-        ];
-      }
-      throw error;
-    }
+    const response: AxiosResponse<Inventory[]> = await api.get('/inventory/low-stock', {
+      params: { pharmacy_id: pharmacyId }
+    });
+    return response.data;
   },
 
   restockItem: async (id: string, quantity: number): Promise<void> => {

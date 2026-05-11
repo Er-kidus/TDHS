@@ -13,7 +13,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { Pill, TrendingUp, Package } from 'lucide-react';
-import { cn, formatCurrency } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils/utils';
 
 interface CategoryData {
   category: string;

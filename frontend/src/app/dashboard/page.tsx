@@ -22,15 +22,16 @@ import {
   X
 } from 'lucide-react';
 import { toast } from '@/components/ui/Toast';
-import { authAPI, inventoryAPI, prescriptionAPI } from '@/lib/api';
+import { authAPI, inventoryAPI, prescriptionAPI } from '@/lib/api/api';
 import { User, Prescription, Inventory } from '@/types';
-import { Sidebar } from '@/components/ui/Sidebar';
+import { Sidebar } from '@/components/layout/Sidebar';
 import { SalesTrendChart, generateMockSalesData } from '@/components/charts/SalesTrendChart';
 import { DrugCategoryChart, generateMockCategoryData } from '@/components/charts/DrugCategoryChart';
-import { OptimisticUpdate, RealTimeInventoryUpdate } from '@/components/ui/OptimisticUpdate';
-import { PDFExport } from '@/components/ui/PDFExport';
+import { OptimisticUpdate, RealTimeInventoryUpdate } from '@/components/features/OptimisticUpdate';
+import { PDFExportComponent } from '@/components/features/PDFExport';
 import { AdaptiveTable, prescriptionColumns } from '@/components/ui/ResponsiveTable';
-import { CommandPalette, useCommandPalette } from '@/components/ui/CommandPalette';
+import { CommandPalette, useCommandPalette } from '@/components/features/CommandPalette';
+import { logoutToParentSystem } from '@/lib/api/integration';
 
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -150,15 +151,15 @@ export default function DashboardPage() {
         }
         
         console.log('Dashboard: All data loaded successfully');
-      } catch (error) {
-        console.error('Dashboard: Failed to load dashboard data:', error);
-        console.log('Dashboard: Error details:', error.code, error.message);
+      } catch (err: any) {
+        console.error('Dashboard: Failed to load dashboard data:', err);
+        console.log('Dashboard: Error details:', err.code, err.message);
         
         // Check if it's a network error (backend not available)
-        if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
+        if (err.code === 'ECONNREFUSED' || err.code === 'ERR_NETWORK') {
           console.log('Dashboard: Backend not available, but continuing with mock data');
           // Don't redirect to login for network errors since we have mock data
-        } else if (error.response?.status === 401) {
+        } else if (err.response?.status === 401) {
           console.log('Dashboard: Token invalid/expired, redirecting to login');
           localStorage.removeItem('token');
           router.push('/login');

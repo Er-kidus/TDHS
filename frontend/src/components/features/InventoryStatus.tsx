@@ -1,7 +1,7 @@
 import React from 'react';
 import { AlertTriangle, Clock, Package, CheckCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { daysUntilExpiry, getExpiryStatus } from '@/lib/utils';
+import { cn } from '@/lib/utils/utils';
+import { daysUntilExpiry, getExpiryStatus } from '@/lib/utils/utils';
 
 interface InventoryItem {
   id: string;

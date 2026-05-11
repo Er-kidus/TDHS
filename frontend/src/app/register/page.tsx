@@ -23,8 +23,8 @@ import { Building2, User, Mail, Lock, Phone, Shield, Loader2, ArrowLeft } from '
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { authAPI, pharmacyAPI } from '@/lib/api';
-import { useSessionStorage } from '@/lib/utils';
+import { authAPI, pharmacyAPI } from '@/lib/api/api';
+import { useSessionStorage } from '@/lib/utils/utils';
 import { useNavigation } from '@/hooks/useNavigation';
 
 const registerSchema = z.object({
@@ -186,13 +186,13 @@ export default function RegisterPage() {
         <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-8">
           {/* Back Button */}
           <div className="mb-4">
-            <button
-              onClick={goBack}
+            <Link
+              href="/login"
               className="flex items-center text-slate-600 hover:text-slate-900 transition-colors"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
-            </button>
+              Back to Login
+            </Link>
           </div>
           
           <NoSSR>
