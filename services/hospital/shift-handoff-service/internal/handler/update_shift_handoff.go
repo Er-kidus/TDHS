@@ -1,0 +1,23 @@
+package handler
+
+import (
+	"encoding/json"
+	"net/http"
+	"github.com/tenadam/shift-handoff-service/internal/dto"
+)
+
+// UpdateShiftHandoff handles PUT requests to update an existing shift-handoff.
+func (h *Handler) UpdateShiftHandoff(w http.ResponseWriter, r *http.Request) {
+	var req dto.UpdateShiftHandoffRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	resp, err := h.svc.UpdateShiftHandoff(r.Context(), req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}

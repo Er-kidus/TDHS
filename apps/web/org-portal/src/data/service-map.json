@@ -1,0 +1,1609 @@
+{
+  "generated_at": "2026-04-25T11:17:35.978409+00:00",
+  "services": [
+    {
+      "domain": "ai",
+      "name": "ai-audit-service",
+      "path": "services/ai/ai-audit-service",
+      "has_api_routes": false,
+      "has_migrations": false,
+      "go_module": false,
+      "file_count": 12
+    },
+    {
+      "domain": "ai",
+      "name": "ai-clinical-decision-support-service",
+      "path": "services/ai/ai-clinical-decision-support-service",
+      "has_api_routes": false,
+      "has_migrations": false,
+      "go_module": false,
+      "file_count": 12
+    },
+    {
+      "domain": "ai",
+      "name": "ai-diagnosis-support-service",
+      "path": "services/ai/ai-diagnosis-support-service",
+      "has_api_routes": false,
+      "has_migrations": false,
+      "go_module": false,
+      "file_count": 12
+    },
+    {
+      "domain": "ai",
+      "name": "ai-nlp-service",
+      "path": "services/ai/ai-nlp-service",
+      "has_api_routes": false,
+      "has_migrations": false,
+      "go_module": false,
+      "file_count": 12
+    },
+    {
+      "domain": "ai",
+      "name": "ai-policy-service",
+      "path": "services/ai/ai-policy-service",
+      "has_api_routes": false,
+      "has_migrations": false,
+      "go_module": false,
+      "file_count": 12
+    },
+    {
+      "domain": "ai",
+      "name": "ai-population-health-service",
+      "path": "services/ai/ai-population-health-service",
+      "has_api_routes": false,
+      "has_migrations": false,
+      "go_module": false,
+      "file_count": 12
+    },
+    {
+      "domain": "ai",
+      "name": "ai-risk-prediction-service",
+      "path": "services/ai/ai-risk-prediction-service",
+      "has_api_routes": false,
+      "has_migrations": false,
+      "go_module": false,
+      "file_count": 12
+    },
+    {
+      "domain": "ai",
+      "name": "ai-triage-service",
+      "path": "services/ai/ai-triage-service",
+      "has_api_routes": false,
+      "has_migrations": false,
+      "go_module": false,
+      "file_count": 12
+    },
+    {
+      "domain": "analytics",
+      "name": "analytics-service",
+      "path": "services/analytics/analytics-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "analytics",
+      "name": "audit-analytics-service",
+      "path": "services/analytics/audit-analytics-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "analytics",
+      "name": "dashboard-service",
+      "path": "services/analytics/dashboard-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "analytics",
+      "name": "data-quality-service",
+      "path": "services/analytics/data-quality-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "analytics",
+      "name": "reporting-service",
+      "path": "services/analytics/reporting-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "clinical",
+      "name": "careplan-service",
+      "path": "services/clinical/careplan-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "clinical",
+      "name": "clinical-data-service",
+      "path": "services/clinical/clinical-data-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "clinical",
+      "name": "clinical-note-service",
+      "path": "services/clinical/clinical-note-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "clinical",
+      "name": "document-service",
+      "path": "services/clinical/document-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "clinical",
+      "name": "encounter-service",
+      "path": "services/clinical/encounter-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "clinical",
+      "name": "procedure-service",
+      "path": "services/clinical/procedure-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "clinical-extensions",
+      "name": "clinical-guideline-service",
+      "path": "services/clinical-extensions/clinical-guideline-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "clinical-extensions",
+      "name": "form-response-service",
+      "path": "services/clinical-extensions/form-response-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "clinical-extensions",
+      "name": "form-service",
+      "path": "services/clinical-extensions/form-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "clinical-extensions",
+      "name": "order-service",
+      "path": "services/clinical-extensions/order-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "clinical-extensions",
+      "name": "order-set-service",
+      "path": "services/clinical-extensions/order-set-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "clinical-extensions",
+      "name": "program-enrollment-service",
+      "path": "services/clinical-extensions/program-enrollment-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "clinical-extensions",
+      "name": "program-service",
+      "path": "services/clinical-extensions/program-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "clinical-extensions",
+      "name": "terminology-service",
+      "path": "services/clinical-extensions/terminology-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "communication",
+      "name": "messaging-service",
+      "path": "services/communication/messaging-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "communication",
+      "name": "notification-service",
+      "path": "services/communication/notification-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "communication",
+      "name": "ussd-service",
+      "path": "services/communication/ussd-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "communication",
+      "name": "voice-tts-service",
+      "path": "services/communication/voice-tts-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "core",
+      "name": "access-control-service",
+      "path": "services/core/access-control-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "core",
+      "name": "audit-service",
+      "path": "services/core/audit-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "core",
+      "name": "auth-service",
+      "path": "services/core/auth-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "core",
+      "name": "configuration-service",
+      "path": "services/core/configuration-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "core",
+      "name": "consent-service",
+      "path": "services/core/consent-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "core",
+      "name": "session-service",
+      "path": "services/core/session-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "core",
+      "name": "user-service",
+      "path": "services/core/user-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "diagnostics",
+      "name": "imaging-service",
+      "path": "services/diagnostics/imaging-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "diagnostics",
+      "name": "lab-service",
+      "path": "services/diagnostics/lab-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "diagnostics",
+      "name": "lab-workflow-service",
+      "path": "services/diagnostics/lab-workflow-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "diagnostics",
+      "name": "radiology-workflow-service",
+      "path": "services/diagnostics/radiology-workflow-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "diagnostics",
+      "name": "result-service",
+      "path": "services/diagnostics/result-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "diagnostics",
+      "name": "specimen-service",
+      "path": "services/diagnostics/specimen-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "diagnostics",
+      "name": "validation-service",
+      "path": "services/diagnostics/validation-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "emergency",
+      "name": "ambulance-service",
+      "path": "services/emergency/ambulance-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "emergency",
+      "name": "emergency-service",
+      "path": "services/emergency/emergency-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "emergency",
+      "name": "emergency-triage-protocol-service",
+      "path": "services/emergency/emergency-triage-protocol-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "emergency",
+      "name": "icu-service",
+      "path": "services/emergency/icu-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "emergency",
+      "name": "resuscitation-service",
+      "path": "services/emergency/resuscitation-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "emergency",
+      "name": "triage-service",
+      "path": "services/emergency/triage-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "financial",
+      "name": "billing-service",
+      "path": "services/financial/billing-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "financial",
+      "name": "claim-adjudication-service",
+      "path": "services/financial/claim-adjudication-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "financial",
+      "name": "claims-service",
+      "path": "services/financial/claims-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "financial",
+      "name": "insurance-eligibility-service",
+      "path": "services/financial/insurance-eligibility-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "financial",
+      "name": "invoicing-service",
+      "path": "services/financial/invoicing-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "financial",
+      "name": "payment-service",
+      "path": "services/financial/payment-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "financial",
+      "name": "pricing-service",
+      "path": "services/financial/pricing-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "financial",
+      "name": "revenue-cycle-service",
+      "path": "services/financial/revenue-cycle-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "front-door",
+      "name": "cmd",
+      "path": "services/front-door/cmd",
+      "has_api_routes": false,
+      "has_migrations": false,
+      "go_module": false,
+      "file_count": 1
+    },
+    {
+      "domain": "front-door",
+      "name": "data",
+      "path": "services/front-door/data",
+      "has_api_routes": false,
+      "has_migrations": false,
+      "go_module": false,
+      "file_count": 1
+    },
+    {
+      "domain": "front-door",
+      "name": "internal",
+      "path": "services/front-door/internal",
+      "has_api_routes": false,
+      "has_migrations": false,
+      "go_module": false,
+      "file_count": 4
+    },
+    {
+      "domain": "front-door",
+      "name": "vendor",
+      "path": "services/front-door/vendor",
+      "has_api_routes": false,
+      "has_migrations": false,
+      "go_module": false,
+      "file_count": 279
+    },
+    {
+      "domain": "hospital",
+      "name": "admission-discharge-transfer-service",
+      "path": "services/hospital/admission-discharge-transfer-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "hospital",
+      "name": "bed-management-service",
+      "path": "services/hospital/bed-management-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "hospital",
+      "name": "inpatient-service",
+      "path": "services/hospital/inpatient-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "hospital",
+      "name": "nursing-dashboard-service",
+      "path": "services/hospital/nursing-dashboard-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "hospital",
+      "name": "nursing-service",
+      "path": "services/hospital/nursing-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "hospital",
+      "name": "nursing-task-service",
+      "path": "services/hospital/nursing-task-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "hospital",
+      "name": "patient-movement-service",
+      "path": "services/hospital/patient-movement-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "hospital",
+      "name": "shift-handoff-service",
+      "path": "services/hospital/shift-handoff-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "hospital",
+      "name": "ward-service",
+      "path": "services/hospital/ward-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "integration",
+      "name": "data-mapping-service",
+      "path": "services/integration/data-mapping-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "integration",
+      "name": "event-bus-service",
+      "path": "services/integration/event-bus-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "integration",
+      "name": "fhir-service",
+      "path": "services/integration/fhir-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "integration",
+      "name": "integration-job-service",
+      "path": "services/integration/integration-job-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "integration",
+      "name": "interoperability-service",
+      "path": "services/integration/interoperability-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "operations",
+      "name": "appointment-service",
+      "path": "services/operations/appointment-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "operations",
+      "name": "check-in-service",
+      "path": "services/operations/check-in-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "operations",
+      "name": "discharge-planning-service",
+      "path": "services/operations/discharge-planning-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "operations",
+      "name": "flow-board-service",
+      "path": "services/operations/flow-board-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "operations",
+      "name": "queue-service",
+      "path": "services/operations/queue-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "operations",
+      "name": "referral-service",
+      "path": "services/operations/referral-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "operations",
+      "name": "scheduling-service",
+      "path": "services/operations/scheduling-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "pharmacy",
+      "name": "dispensing-service",
+      "path": "services/pharmacy/dispensing-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "pharmacy",
+      "name": "drug-formulary-service",
+      "path": "services/pharmacy/drug-formulary-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "pharmacy",
+      "name": "medication-administration-service",
+      "path": "services/pharmacy/medication-administration-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "pharmacy",
+      "name": "medication-service",
+      "path": "services/pharmacy/medication-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "pharmacy",
+      "name": "pharmacy-inventory-service",
+      "path": "services/pharmacy/pharmacy-inventory-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "pharmacy",
+      "name": "prescription-service",
+      "path": "services/pharmacy/prescription-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "public-health",
+      "name": "national-reporting-service",
+      "path": "services/public-health/national-reporting-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "public-health",
+      "name": "outbreak-detection-service",
+      "path": "services/public-health/outbreak-detection-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "public-health",
+      "name": "program-reporting-service",
+      "path": "services/public-health/program-reporting-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "public-health",
+      "name": "surveillance-service",
+      "path": "services/public-health/surveillance-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "registry",
+      "name": "facility-service",
+      "path": "services/registry/facility-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "registry",
+      "name": "household-service",
+      "path": "services/registry/household-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "registry",
+      "name": "identifier-service",
+      "path": "services/registry/identifier-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "registry",
+      "name": "organization-service",
+      "path": "services/registry/organization-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "registry",
+      "name": "patient-service",
+      "path": "services/registry/patient-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "registry",
+      "name": "practitioner-service",
+      "path": "services/registry/practitioner-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "supply-chain",
+      "name": "asset-service",
+      "path": "services/supply-chain/asset-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "supply-chain",
+      "name": "inventory-service",
+      "path": "services/supply-chain/inventory-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "supply-chain",
+      "name": "logistics-service",
+      "path": "services/supply-chain/logistics-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "supply-chain",
+      "name": "procurement-service",
+      "path": "services/supply-chain/procurement-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "supply-chain",
+      "name": "stock-reconciliation-service",
+      "path": "services/supply-chain/stock-reconciliation-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "supply-chain",
+      "name": "vendor-service",
+      "path": "services/supply-chain/vendor-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "supply-chain",
+      "name": "warehouse-service",
+      "path": "services/supply-chain/warehouse-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "surgery",
+      "name": "post-operative-care-service",
+      "path": "services/surgery/post-operative-care-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "surgery",
+      "name": "surgery-protocol-service",
+      "path": "services/surgery/surgery-protocol-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "surgery",
+      "name": "surgery-scheduling-service",
+      "path": "services/surgery/surgery-scheduling-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "surgery",
+      "name": "surgery-service",
+      "path": "services/surgery/surgery-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "surgery",
+      "name": "theatre-management-service",
+      "path": "services/surgery/theatre-management-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "telemedicine",
+      "name": "chat-service",
+      "path": "services/telemedicine/chat-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "telemedicine",
+      "name": "remote-monitoring-service",
+      "path": "services/telemedicine/remote-monitoring-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "telemedicine",
+      "name": "tele-triage-service",
+      "path": "services/telemedicine/tele-triage-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "telemedicine",
+      "name": "teleconsult-service",
+      "path": "services/telemedicine/teleconsult-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "telemedicine",
+      "name": "telemedicine-service",
+      "path": "services/telemedicine/telemedicine-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    },
+    {
+      "domain": "telemedicine",
+      "name": "video-session-service",
+      "path": "services/telemedicine/video-session-service",
+      "has_api_routes": true,
+      "has_migrations": true,
+      "go_module": true,
+      "file_count": 28
+    }
+  ],
+  "gateway_endpoints": [
+    {
+      "method": "GET",
+      "path": "/health",
+      "handler": "h.Health"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/register",
+      "handler": "h.PatientRegister"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/login",
+      "handler": "h.PatientLogin"
+    },
+    {
+      "method": "POST",
+      "path": "/org/auth/register",
+      "handler": "h.OrgRegister"
+    },
+    {
+      "method": "POST",
+      "path": "/org/auth/login",
+      "handler": "h.OrgLogin"
+    },
+    {
+      "method": "POST",
+      "path": "/org/applications",
+      "handler": "h.OrgSubmitApplication"
+    },
+    {
+      "method": "GET",
+      "path": "/org/hospitals",
+      "handler": "h.OrgListRegisteredHospitals"
+    },
+    {
+      "method": "GET",
+      "path": "/organizations",
+      "handler": "h.OrgListOrganizations"
+    },
+    {
+      "method": "GET",
+      "path": "/patients/me",
+      "handler": "h.RequirePatient(h.GetPatientMe"
+    },
+    {
+      "method": "PUT",
+      "path": "/patients/update",
+      "handler": "h.RequirePatient(h.UpdatePatientMe"
+    },
+    {
+      "method": "GET",
+      "path": "/doctors",
+      "handler": "h.RequirePatient(h.ListDoctors"
+    },
+    {
+      "method": "GET",
+      "path": "/prescriptions",
+      "handler": "h.RequirePatient(h.ListPrescriptions"
+    },
+    {
+      "method": "GET",
+      "path": "/lab-results",
+      "handler": "h.RequirePatient(h.ListLabResults"
+    },
+    {
+      "method": "GET",
+      "path": "/billing/invoices",
+      "handler": "h.RequirePatient(h.ListInvoices"
+    },
+    {
+      "method": "GET",
+      "path": "/insurance",
+      "handler": "h.RequirePatient(h.GetInsurance"
+    },
+    {
+      "method": "GET",
+      "path": "/care/chronic",
+      "handler": "h.RequirePatient(h.ListChronicCare"
+    },
+    {
+      "method": "GET",
+      "path": "/care/pregnancy",
+      "handler": "h.RequirePatient(h.ListPregnancyCare"
+    },
+    {
+      "method": "GET",
+      "path": "/care/recurrent-medications",
+      "handler": "h.RequirePatient(h.ListRecurrentMedications"
+    },
+    {
+      "method": "GET",
+      "path": "/messages",
+      "handler": "h.RequireAny(h.ListMessages"
+    },
+    {
+      "method": "POST",
+      "path": "/messages",
+      "handler": "h.RequireAny(h.CreateMessage"
+    },
+    {
+      "method": "GET",
+      "path": "/documents",
+      "handler": "h.RequirePatient(h.ListDocuments"
+    },
+    {
+      "method": "POST",
+      "path": "/documents",
+      "handler": "h.RequirePatient(h.CreateDocument"
+    },
+    {
+      "method": "GET",
+      "path": "/telemedicine/sessions",
+      "handler": "h.RequirePatient(h.ListTelemedicineSessions"
+    },
+    {
+      "method": "POST",
+      "path": "/telemedicine/sessions",
+      "handler": "h.RequirePatient(h.CreateTelemedicineSession"
+    },
+    {
+      "method": "POST",
+      "path": "/telemedicine/livekit/token",
+      "handler": "h.RequireAny(h.IssueLiveKitToken"
+    },
+    {
+      "method": "GET",
+      "path": "/telemedicine/sessions/{id}/transcript-lines",
+      "handler": "h.RequireAny(h.ListTelemedicineTranscriptLines"
+    },
+    {
+      "method": "POST",
+      "path": "/telemedicine/sessions/{id}/transcript-lines",
+      "handler": "h.RequireAny(h.CreateTelemedicineTranscriptLine"
+    },
+    {
+      "method": "POST",
+      "path": "/telemedicine/sessions/{id}/summary",
+      "handler": "h.RequireAny(h.CreateTelemedicineSummary"
+    },
+    {
+      "method": "GET",
+      "path": "/telemedicine/artifacts",
+      "handler": "h.RequirePatient(h.ListTelemedicineArtifacts"
+    },
+    {
+      "method": "GET",
+      "path": "/pharmacy/medications",
+      "handler": "h.RequirePatient(h.ListPharmacyMedications"
+    },
+    {
+      "method": "GET",
+      "path": "/pharmacy/pharmacies",
+      "handler": "h.RequirePatient(h.ListPharmacies"
+    },
+    {
+      "method": "GET",
+      "path": "/pharmacy/orders",
+      "handler": "h.RequirePatient(h.ListPharmacyOrders"
+    },
+    {
+      "method": "POST",
+      "path": "/pharmacy/orders",
+      "handler": "h.RequirePatient(h.CreatePharmacyOrder"
+    },
+    {
+      "method": "GET",
+      "path": "/ai/consent",
+      "handler": "h.RequirePatient(h.GetAIConsent"
+    },
+    {
+      "method": "PUT",
+      "path": "/ai/consent",
+      "handler": "h.RequirePatient(h.UpsertAIConsent"
+    },
+    {
+      "method": "POST",
+      "path": "/ai/learning-samples",
+      "handler": "h.RequirePatient(h.CreateAILearningSample"
+    },
+    {
+      "method": "POST",
+      "path": "/ai/router",
+      "handler": "h.RequirePatient(h.AIRouter"
+    },
+    {
+      "method": "POST",
+      "path": "/appointments",
+      "handler": "h.RequireAny(h.CreateAppointment"
+    },
+    {
+      "method": "GET",
+      "path": "/appointments",
+      "handler": "h.RequireAny(h.ListAppointments"
+    },
+    {
+      "method": "GET",
+      "path": "/appointments/{id}",
+      "handler": "h.RequireAny(h.GetAppointment"
+    },
+    {
+      "method": "PUT",
+      "path": "/appointments/{id}",
+      "handler": "h.RequireAny(h.UpdateAppointment"
+    },
+    {
+      "method": "DELETE",
+      "path": "/appointments/{id}",
+      "handler": "h.RequireAny(h.DeleteAppointment"
+    },
+    {
+      "method": "POST",
+      "path": "/appointments/{id}/assign",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"superadmin\""
+    },
+    {
+      "method": "GET",
+      "path": "/services",
+      "handler": "h.RequireAny(h.ListServices"
+    },
+    {
+      "method": "POST",
+      "path": "/services",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"superadmin\""
+    },
+    {
+      "method": "PUT",
+      "path": "/services/{id}",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"superadmin\""
+    },
+    {
+      "method": "DELETE",
+      "path": "/services/{id}",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"superadmin\""
+    },
+    {
+      "method": "GET",
+      "path": "/resources",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"superadmin\""
+    },
+    {
+      "method": "GET",
+      "path": "/queues",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"doctor\", \"nurse\", \"staff\", \"superadmin\""
+    },
+    {
+      "method": "POST",
+      "path": "/queues/reorder",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"doctor\", \"nurse\", \"staff\", \"superadmin\""
+    },
+    {
+      "method": "POST",
+      "path": "/queues/check-in",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"doctor\", \"nurse\", \"staff\", \"superadmin\""
+    },
+    {
+      "method": "GET",
+      "path": "/org/me",
+      "handler": "h.RequireOrg(h.OrgMe"
+    },
+    {
+      "method": "GET",
+      "path": "/org/me/telemedicine",
+      "handler": "h.RequireOrgAnyRole(\"doctor\", \"nurse\""
+    },
+    {
+      "method": "PATCH",
+      "path": "/org/me/telemedicine",
+      "handler": "h.RequireOrgAnyRole(\"doctor\", \"nurse\""
+    },
+    {
+      "method": "GET",
+      "path": "/org/configuration/me",
+      "handler": "h.RequireOrg(h.OrgGetMyOrganizationConfiguration"
+    },
+    {
+      "method": "GET",
+      "path": "/org/service-management/me",
+      "handler": "h.RequireOrg(h.OrgGetMyServiceManagement"
+    },
+    {
+      "method": "GET",
+      "path": "/org/application/me",
+      "handler": "h.RequireOrg(h.OrgMyApplication"
+    },
+    {
+      "method": "GET",
+      "path": "/org/staff-role-templates",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"superadmin\""
+    },
+    {
+      "method": "POST",
+      "path": "/org/staff-role-templates",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "PUT",
+      "path": "/org/staff-role-templates/{key}",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "PATCH",
+      "path": "/org/staff-role-templates/{key}/status",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "GET",
+      "path": "/org/applications",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "GET",
+      "path": "/org/applications/{id}",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "PATCH",
+      "path": "/org/applications/{id}/approve",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "PATCH",
+      "path": "/org/applications/{id}/reject",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "PATCH",
+      "path": "/org/applications/{id}/services",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "PATCH",
+      "path": "/org/applications/{id}/staff-configurations",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "POST",
+      "path": "/org/applications/{id}/request-update",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"superadmin\""
+    },
+    {
+      "method": "PATCH",
+      "path": "/org/applications/{id}/resolve-update",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "PATCH",
+      "path": "/org/applications/{id}/domain",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "GET",
+      "path": "/org/organizations",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "GET",
+      "path": "/org/tiers",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "GET",
+      "path": "/org/organizations/manage",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "GET",
+      "path": "/org/organizations/{id}/configuration",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"superadmin\""
+    },
+    {
+      "method": "PUT",
+      "path": "/org/organizations/{id}/configuration",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"superadmin\""
+    },
+    {
+      "method": "GET",
+      "path": "/org/organizations/{id}/service-management",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"superadmin\""
+    },
+    {
+      "method": "PUT",
+      "path": "/org/organizations/{id}/service-management",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"superadmin\""
+    },
+    {
+      "method": "GET",
+      "path": "/org/organizations/{id}/staff",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"superadmin\""
+    },
+    {
+      "method": "POST",
+      "path": "/org/organizations/{id}/staff",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"superadmin\""
+    },
+    {
+      "method": "PUT",
+      "path": "/org/organizations/{id}/staff/{userId}",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"superadmin\""
+    },
+    {
+      "method": "DELETE",
+      "path": "/org/organizations/{id}/staff/{userId}",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"superadmin\""
+    },
+    {
+      "method": "GET",
+      "path": "/org/patients",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"doctor\", \"nurse\", \"staff\", \"superadmin\""
+    },
+    {
+      "method": "GET",
+      "path": "/org/patients/{id}",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"doctor\", \"nurse\", \"staff\", \"superadmin\""
+    },
+    {
+      "method": "GET",
+      "path": "/org/users",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "POST",
+      "path": "/org/users",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "PUT",
+      "path": "/org/users/{id}",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "PUT",
+      "path": "/org/users/{id}/role",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "PATCH",
+      "path": "/org/users/{id}/status",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "POST",
+      "path": "/org/users/{id}/reset-password",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "GET",
+      "path": "/org/system/overview",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "GET",
+      "path": "/org/doctors",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"doctor\", \"nurse\", \"staff\", \"superadmin\""
+    },
+    {
+      "method": "POST",
+      "path": "/org/doctors",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"superadmin\""
+    },
+    {
+      "method": "GET",
+      "path": "/org/pharmacies",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"superadmin\""
+    },
+    {
+      "method": "POST",
+      "path": "/org/pharmacies",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"superadmin\""
+    },
+    {
+      "method": "GET",
+      "path": "/org/telemedicine/artifacts",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"doctor\", \"nurse\", \"staff\", \"superadmin\""
+    },
+    {
+      "method": "GET",
+      "path": "/org/telemedicine/queue",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"doctor\", \"nurse\", \"superadmin\""
+    },
+    {
+      "method": "POST",
+      "path": "/org/telemedicine/queue/accept",
+      "handler": "h.RequireOrgAnyRole(\"admin\", \"doctor\", \"nurse\", \"superadmin\""
+    },
+    {
+      "method": "GET",
+      "path": "/org/ai/models",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "POST",
+      "path": "/org/ai/models/train",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "PUT",
+      "path": "/org/ai/models/status",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "GET",
+      "path": "/org/ai/provider-keys",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "PUT",
+      "path": "/org/ai/provider-keys",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    },
+    {
+      "method": "DELETE",
+      "path": "/org/ai/provider-keys/{provider}",
+      "handler": "h.RequireOrgRole(\"superadmin\""
+    }
+  ],
+  "wiring": {
+    "patient_portal_wired": [
+      "/auth/register",
+      "/auth/login",
+      "/patients/me",
+      "/patients/update",
+      "/appointments",
+      "/appointments/{id}"
+    ],
+    "patient_portal_missing": [],
+    "org_portal_wired": [
+      "/org/auth/login",
+      "/org/patients",
+      "/org/patients/{id}",
+      "/appointments",
+      "/appointments/{id}"
+    ],
+    "org_portal_missing": []
+  },
+  "operations": {
+    "scanned_services_folder": true,
+    "scanned_gateway_routes": true,
+    "generated_docs": true,
+    "generated_json": true
+  }
+}
