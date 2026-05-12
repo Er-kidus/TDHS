@@ -122,31 +122,146 @@ export const pharmacyAPI = {
   },
 };
 
+// Helper functions for localStorage medications
+const getStoredMedications = (): Medication[] => {
+  if (typeof window === 'undefined') return [];
+  const stored = localStorage.getItem('medications');
+  if (!stored) {
+    // Initialize with sample data if empty
+    const sampleMedications = [
+      {
+        id: 'med1',
+        ndc_code: '12345-678-90',
+        brand_name: 'Amoxil',
+        generic_name: 'Amoxicillin',
+        dosage_form: 'Capsule',
+        strength: '500mg',
+        manufacturer: 'GSK',
+        description: 'Antibiotic for bacterial infections',
+        is_controlled_substance: false,
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'med2',
+        ndc_code: '23456-789-01',
+        brand_name: 'Lipitor',
+        generic_name: 'Atorvastatin',
+        dosage_form: 'Tablet',
+        strength: '20mg',
+        manufacturer: 'Pfizer',
+        description: 'Cholesterol-lowering medication',
+        is_controlled_substance: false,
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'med3',
+        ndc_code: '34567-890-12',
+        brand_name: 'Metformin',
+        generic_name: 'Metformin Hydrochloride',
+        dosage_form: 'Tablet',
+        strength: '500mg',
+        manufacturer: 'Merck',
+        description: 'Diabetes medication',
+        is_controlled_substance: false,
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'med4',
+        ndc_code: '45678-901-23',
+        brand_name: 'Amlodipine',
+        generic_name: 'Amlodipine Besylate',
+        dosage_form: 'Tablet',
+        strength: '5mg',
+        manufacturer: 'Pfizer',
+        description: 'Blood pressure medication',
+        is_controlled_substance: false,
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'med5',
+        ndc_code: '56789-012-34',
+        brand_name: 'Omeprazole',
+        generic_name: 'Omeprazole',
+        dosage_form: 'Capsule',
+        strength: '20mg',
+        manufacturer: 'AstraZeneca',
+        description: 'Acid reflux medication',
+        is_controlled_substance: false,
+        created_at: new Date().toISOString()
+      }
+    ];
+    localStorage.setItem('medications', JSON.stringify(sampleMedications));
+    return sampleMedications;
+  }
+  return JSON.parse(stored);
+};
+
+const setStoredMedications = (medications: Medication[]): void => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('medications', JSON.stringify(medications));
+};
+
 // Medication API
 export const medicationAPI = {
   getMedications: async (search?: string): Promise<Medication[]> => {
-    const params = search ? { search } : {};
-    const response: AxiosResponse<Medication[]> = await api.get('/medications', { params });
-    return response.data;
+    try {
+      const medications = getStoredMedications();
+      
+      if (!search) {
+        return medications;
+      }
+      
+      const lowerSearch = search.toLowerCase();
+      return medications.filter(med =>
+        med.brand_name?.toLowerCase().includes(lowerSearch) ||
+        med.generic_name?.toLowerCase().includes(lowerSearch) ||
+        med.ndc_code?.toLowerCase().includes(lowerSearch)
+      );
+    } catch (error) {
+      console.error('Failed to load medications from localStorage:', error);
+      // Fallback to API if localStorage fails
+      const params = search ? { search } : {};
+      const response: AxiosResponse<Medication[]> = await api.get('/medications', { params });
+      return response.data;
+    }
   },
 
   getMedication: async (id: string): Promise<Medication> => {
+    const medications = getStoredMedications();
+    const medication = medications.find(m => m.id === id);
+    if (medication) return medication;
+    
+    // Fallback to API
     const response: AxiosResponse<Medication> = await api.get(`/medications/${id}`);
     return response.data;
   },
 
   createMedication: async (data: Omit<Medication, 'id' | 'created_at'>): Promise<Medication> => {
-    const response: AxiosResponse<Medication> = await api.post('/medications', data);
-    return response.data;
+    const medications = getStoredMedications();
+    const newMedication = {
+      ...data,
+      id: `MED-${Date.now()}`,
+      created_at: new Date().toISOString()
+    };
+    medications.push(newMedication);
+    setStoredMedications(medications);
+    return newMedication;
   },
 
   updateMedication: async (id: string, data: Partial<Medication>): Promise<Medication> => {
-    const response: AxiosResponse<Medication> = await api.put(`/medications/${id}`, data);
-    return response.data;
+    const medications = getStoredMedications();
+    const index = medications.findIndex(m => m.id === id);
+    if (index === -1) throw new Error('Medication not found');
+    
+    medications[index] = { ...medications[index], ...data };
+    setStoredMedications(medications);
+    return medications[index];
   },
 
   deleteMedication: async (id: string): Promise<void> => {
-    await api.delete(`/medications/${id}`);
+    const medications = getStoredMedications();
+    const filtered = medications.filter(m => m.id !== id);
+    setStoredMedications(filtered);
   },
 };
 

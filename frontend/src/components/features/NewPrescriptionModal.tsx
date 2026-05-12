@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Plus, Search } from 'lucide-react';
 import { toast } from '@/components/ui/Toast';
-import { prescriptionAPI, medicationAPI, emrAPI } from '@/lib/api/api';
+import { prescriptionAPI, medicationAPI } from '@/lib/api/api';
+import { emrAPI } from '@/lib/api/emr';
 import { Medication, Prescription } from '@/types';
 import { authAPI } from '@/lib/api/api';
 
@@ -34,6 +35,8 @@ export function NewPrescriptionModal({ isOpen, onClose, onSuccess, pharmacyId }:
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [patientSearchTerm, setPatientSearchTerm] = useState('');
+  const [showPatientDropdown, setShowPatientDropdown] = useState(false);
+  const [showMedicationDropdown, setShowMedicationDropdown] = useState(false);
   const [selectedMedication, setSelectedMedication] = useState<Medication | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<any | null>(null);
   const [formData, setFormData] = useState<FormData>({
@@ -49,17 +52,38 @@ export function NewPrescriptionModal({ isOpen, onClose, onSuccess, pharmacyId }:
     priority: 'normal',
     notes: ''
   });
+  const patientDropdownRef = useRef<HTMLDivElement>(null);
+  const medicationDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       loadMedications();
       loadPatients();
+      setShowPatientDropdown(true);
+      setShowMedicationDropdown(true);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (patientDropdownRef.current && !patientDropdownRef.current.contains(event.target as Node)) {
+        setShowPatientDropdown(false);
+      }
+      if (medicationDropdownRef.current && !medicationDropdownRef.current.contains(event.target as Node)) {
+        setShowMedicationDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const loadMedications = async () => {
     try {
       const meds = await medicationAPI.getMedications();
+      console.log('Loaded medications:', meds);
       setMedications(meds);
     } catch (error) {
       console.error('Failed to load medications:', error);
@@ -70,6 +94,7 @@ export function NewPrescriptionModal({ isOpen, onClose, onSuccess, pharmacyId }:
   const loadPatients = async () => {
     try {
       const patientsData = await emrAPI.searchPatients('', pharmacyId);
+      console.log('Loaded patients:', patientsData);
       setPatients(patientsData);
     } catch (error) {
       console.error('Failed to load patients:', error);
@@ -97,6 +122,7 @@ export function NewPrescriptionModal({ isOpen, onClose, onSuccess, pharmacyId }:
       drug_name: medication.brand_name || medication.generic_name || ''
     }));
     setSearchTerm('');
+    setShowMedicationDropdown(false);
   };
 
   const handlePatientSelect = (patient: any) => {
@@ -107,6 +133,7 @@ export function NewPrescriptionModal({ isOpen, onClose, onSuccess, pharmacyId }:
       patient_name: `${patient.first_name} ${patient.last_name}`
     }));
     setPatientSearchTerm('');
+    setShowPatientDropdown(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -196,6 +223,8 @@ export function NewPrescriptionModal({ isOpen, onClose, onSuccess, pharmacyId }:
       setSelectedPatient(null);
       setSearchTerm('');
       setPatientSearchTerm('');
+      setShowPatientDropdown(false);
+      setShowMedicationDropdown(false);
     }, 300);
   };
 
@@ -232,13 +261,14 @@ export function NewPrescriptionModal({ isOpen, onClose, onSuccess, pharmacyId }:
                   setPatientSearchTerm(e.target.value);
                   setSelectedPatient(null);
                 }}
+                onFocus={() => setShowPatientDropdown(true)}
                 className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               />
             </div>
             
             {/* Patient Dropdown */}
-            {!selectedPatient && patientSearchTerm && (
-              <div className="mt-2 border border-gray-200 rounded-lg max-h-48 overflow-y-auto">
+            {!selectedPatient && showPatientDropdown && (
+              <div ref={patientDropdownRef} className="mt-2 border border-gray-200 rounded-lg max-h-48 overflow-y-auto">
                 {filteredPatients.length > 0 ? (
                   filteredPatients.map((patient) => (
                     <div
@@ -280,13 +310,14 @@ export function NewPrescriptionModal({ isOpen, onClose, onSuccess, pharmacyId }:
                   setSearchTerm(e.target.value);
                   setSelectedMedication(null);
                 }}
+                onFocus={() => setShowMedicationDropdown(true)}
                 className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               />
             </div>
             
             {/* Medication Dropdown */}
-            {!selectedMedication && searchTerm && (
-              <div className="mt-2 border border-gray-200 rounded-lg max-h-48 overflow-y-auto">
+            {!selectedMedication && showMedicationDropdown && (
+              <div ref={medicationDropdownRef} className="mt-2 border border-gray-200 rounded-lg max-h-48 overflow-y-auto">
                 {filteredMedications.length > 0 ? (
                   filteredMedications.map((medication) => (
                     <div
