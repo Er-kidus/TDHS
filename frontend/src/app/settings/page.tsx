@@ -189,55 +189,6 @@ export default function SettingsPage() {
     message: ''
   });
 
-  useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          router.push('/login');
-          return;
-        }
-
-        const userData = await authAPI.getProfile();
-        const extendedUserData = userData as ExtendedUser;
-        setUser(extendedUserData);
-        
-        // Set profile form values
-        setProfileForm({
-          first_name: userData.first_name,
-          last_name: userData.last_name,
-          email: userData.email || '',
-          phone: userData.phone || ''
-        });
-
-        // Set pharmacy form values (mock data for now)
-        setPharmacyForm({
-          name: extendedUserData.pharmacy_name || 'MedCare Pharmacy',
-          address: '123 Main St, City, State 12345',
-          phone: '+1 (555) 123-4567',
-          email: 'contact@medcare.com',
-          license_number: 'PH-12345-67890',
-          operating_hours: {
-            monday: '9:00 AM - 6:00 PM',
-            tuesday: '9:00 AM - 6:00 PM',
-            wednesday: '9:00 AM - 6:00 PM',
-            thursday: '9:00 AM - 6:00 PM',
-            friday: '9:00 AM - 6:00 PM',
-            saturday: '9:00 AM - 2:00 PM',
-            sunday: 'Closed'
-          }
-        });
-      } catch (error) {
-        console.error('Failed to load user data:', error);
-        toast.error('Failed to load user data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadUserData();
-  }, []); // Remove router dependency to prevent infinite loop
-
   const handleProfileSave = async () => {
     setSaving(true);
     try {
@@ -929,26 +880,14 @@ export default function SettingsPage() {
                           </label>
 
                           <div>
-                            <label
-                            onCli k={handceUpgrldePlan}
-                            diaabled={saving}
-                            classsName="block text-sm font-medium text-gray-700 mb-2">API Rate Limit (reque disabled:opacity-50s
-                          ts/hour)</label>
-                            {saving ? 'Processing...' : '<input'}
+                            <label className="block text-sm font-medium text-gray-700 mb-2">API Rate Limit (requests/hour)</label>
+                            <input
                               type="number"
-                              val 
-                           uonCliek={hand=eUpdateP{yment}
-                            disabled={yaving}
-                            classstemSettings.api_rate_limit}ay-50 disabled:opcit
-                          
-                            {saving ? 'Processing...' : '  onChange={(e) => se'}tSystemSettings(prev => ({ ...prev, api_rate_limit: parseInt(e.target.value) }))}
+                              value={systemSettings.api_rate_limit}
+                              onChange={(e) => setSystemSettings(prev => ({ ...prev, api_rate_limit: parseInt(e.target.value) }))}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            /> 
-                           onClik={handleDownodInvoice}
-                            disabled={saving}
-                            clas disabled:opacity-50
-                          
-                            {saving ? 'Downloading...'<:/'div>'}
+                            />
+                          </div>
 
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Session Timeout (minutes)</label>
@@ -1004,31 +943,21 @@ export default function SettingsPage() {
                         <div className="space-y-4">
                           <div>
                             <div className="flex items-center justify-between mb-2">
-                            value={contactForm.subject}
-                            onChange={(e) => setContactForm(prev => ({ ...prev, subject: e.target.value }))}
                               <span className="text-sm text-gray-600">Prescriptions</span>
                               <span className="text-sm font-medium text-gray-900">
                                 {billingInfo.usage_stats.prescriptions_used} / {billingInfo.usage_stats.prescriptions_limit}
                               </span>
                             </div>
-                            value={contactForm.email}
-                            onChange={(e) => setContactForm(prev => ({ ...prev, email: e.target.value }))}
                             <div className="w-full bg-gray-200 rounded-full h-2">
                               <div
                                 className="bg-blue-600 h-2 rounded-full"
                                 style={{ width: `${(billingInfo.usage_stats.prescriptions_used / billingInfo.usage_stats.prescriptions_limit) * 100}%` }}
                               />
                             </div>
-                          value={conta<tForm.message}
-                          onChange={(e) => setContactForm(prev => ({ ...prev, message: e.target.value }))}
-                          c/div>
+                          </div>
 
-                          <div> 
-                         onClik={handeContctSubmit}
-                          diabled={aving}
-                          class disabled:opacity-50
-                        
-                          {saving ? 'Sending...' : '  <div class'}Name="flex items-center justify-between mb-2">
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
                               <span className="text-sm text-gray-600">Storage (GB)</span>
                               <span className="text-sm font-medium text-gray-900">
                                 {billingInfo.usage_stats.storage_used} / {billingInfo.usage_stats.storage_limit}
@@ -1048,14 +977,26 @@ export default function SettingsPage() {
                       <div>
                         <h3 className="text-md font-medium text-gray-900 mb-4">Billing Actions</h3>
                         <div className="space-y-3">
-                          <button className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                            Upgrade Plan
+                          <button
+                            onClick={handleUpgradePlan}
+                            disabled={saving}
+                            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                          >
+                            {saving ? 'Processing...' : 'Upgrade Plan'}
                           </button>
-                          <button className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
-                            Update Payment Method
+                          <button
+                            onClick={handleUpdatePayment}
+                            disabled={saving}
+                            className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                          >
+                            {saving ? 'Processing...' : 'Update Payment Method'}
                           </button>
-                          <button className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
-                            Download Invoices
+                          <button
+                            onClick={handleDownloadInvoices}
+                            disabled={saving}
+                            className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                          >
+                            {saving ? 'Downloading...' : 'Download Invoices'}
                           </button>
                         </div>
                       </div>
@@ -1123,21 +1064,31 @@ export default function SettingsPage() {
                           <input
                             type="text"
                             placeholder="Subject"
+                            value={contactForm.subject}
+                            onChange={(e) => setContactForm(prev => ({ ...prev, subject: e.target.value }))}
                             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           />
                           <input
                             type="email"
                             placeholder="Your email"
+                            value={contactForm.email}
+                            onChange={(e) => setContactForm(prev => ({ ...prev, email: e.target.value }))}
                             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           />
                         </div>
                         <textarea
                           placeholder="Describe your issue..."
                           rows={4}
+                          value={contactForm.message}
+                          onChange={(e) => setContactForm(prev => ({ ...prev, message: e.target.value }))}
                           className="w-full mt-4 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
-                        <button className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                          Send Message
+                        <button
+                          onClick={handleContactSubmit}
+                          disabled={saving}
+                          className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          {saving ? 'Sending...' : 'Send Message'}
                         </button>
                       </div>
                     </div>

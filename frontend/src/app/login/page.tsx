@@ -41,6 +41,9 @@ export default function LoginPage() {
       
       if (typeof window !== 'undefined') {
         localStorage.setItem('token', response.token);
+        if (response.user?.pharmacy_id) {
+          localStorage.setItem('pharmacyId', response.user.pharmacy_id);
+        }
         console.log('Token stored in localStorage');
       }
       
@@ -134,13 +137,13 @@ export default function LoginPage() {
                 />
                 <label htmlFor="remember" className="ml-2 block text-sm text-gray-700">
                   Remember me
-                </labe
-                l> 
-               onClik={() => setShowForgotPassword(true)}
-                c
-              
+                </label>
               </div>
-              <button type="button" className="text-sm text-blue-600 hover:text-blue-500">
+              <button 
+                type="button" 
+                onClick={() => setShowForgotPassword(true)}
+                className="text-sm text-blue-600 hover:text-blue-500"
+              >
                 Forgot password?
               </button>
             </div>

@@ -14,6 +14,35 @@ export interface User {
 
 export type UserRole = 'admin' | 'pharmacist' | 'technician' | 'doctor' | 'patient';
 
+// Patient types
+export interface Patient {
+  id: string;
+  first_name: string;
+  last_name: string;
+  national_id: string;
+  date_of_birth: string;
+  phone: string;
+  email?: string;
+  address: string;
+  city?: string;
+  blood_type: string;
+  allergies: string[];
+  chronic_conditions: string[];
+  emergency_contact: {
+    name: string;
+    phone: string;
+    relationship: string;
+  };
+  insurance_info: {
+    provider: string;
+    policy_number: string;
+  };
+  last_visit: string;
+  total_prescriptions: number;
+  active_medications: string[];
+  created_at?: string;
+}
+
 // Pharmacy types
 export interface Pharmacy {
   id: string;

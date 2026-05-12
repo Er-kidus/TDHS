@@ -13,6 +13,7 @@ import { authAPI } from '@/lib/api/api';
 import { emrAPI } from '@/lib/api/emr';
 import { PageHeader } from '@/components/layout/Breadcrumbs';
 import { useNavigation } from '@/hooks/useNavigation';
+import { NewPatientModal } from '@/components/features/NewPatientModal';
 
 interface Patient {
   id: string;
@@ -47,6 +48,7 @@ export default function PatientsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCondition, setFilterCondition] = useState('all');
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [showNewPatientModal, setShowNewPatientModal] = useState(false);
   const router = useRouter();
   const { goBack, getBackPath, addToHistory } = useNavigation();
   
@@ -124,8 +126,11 @@ export default function PatientsPage() {
   };
 
   const handleNewPatient = () => {
-    // In a real app, this would open a modal or navigate to a creation page
-    toast.info('New Patient feature coming soon - currently integrated via EMR sync');
+    setShowNewPatientModal(true);
+  };
+
+  const handlePatientSuccess = (newPatient: Patient) => {
+    setPatients(prev => [newPatient, ...prev]);
   };
 
   const getAge = (dateOfBirth: string) => {
@@ -472,6 +477,14 @@ export default function PatientsPage() {
         isOpen={isCommandPaletteOpen}
         onClose={closeCommandPalette}
         onSelectPatient={handlePatientSelect}
+      />
+
+      {/* New Patient Modal */}
+      <NewPatientModal
+        isOpen={showNewPatientModal}
+        onClose={() => setShowNewPatientModal(false)}
+        onSuccess={handlePatientSuccess}
+        pharmacyId={localStorage.getItem('pharmacyId') || ''}
       />
     </div>
   );

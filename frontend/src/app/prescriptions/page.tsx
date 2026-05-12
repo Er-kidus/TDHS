@@ -11,6 +11,7 @@ import { prescriptionAPI } from '@/lib/api/api';
 import { Prescription, PrescriptionStatus } from '@/types';
 import { PageHeader } from '@/components/layout/Breadcrumbs';
 import { useNavigation } from '@/hooks/useNavigation';
+import { NewPrescriptionModal } from '@/components/features/NewPrescriptionModal';
 
 export default function PrescriptionsPage() {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
@@ -18,6 +19,7 @@ export default function PrescriptionsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
+  const [showNewPrescriptionModal, setShowNewPrescriptionModal] = useState(false);
   const router = useRouter();
   const { goBack, getBackPath, addToHistory } = useNavigation();
 
@@ -127,8 +129,11 @@ export default function PrescriptionsPage() {
   };
 
   const handleNewPrescription = () => {
-    // In a real app, this would open a modal to create a new prescription
-    toast.info('Manual Prescription feature coming soon - typically synced from EMR');
+    setShowNewPrescriptionModal(true);
+  };
+
+  const handlePrescriptionSuccess = (newPrescription: Prescription) => {
+    setPrescriptions(prev => [newPrescription, ...prev]);
   };
 
   const getStatusIcon = (status: string) => {
@@ -510,6 +515,14 @@ export default function PrescriptionsPage() {
           </div>
         </div>
       </div>
+
+      {/* New Prescription Modal */}
+      <NewPrescriptionModal
+        isOpen={showNewPrescriptionModal}
+        onClose={() => setShowNewPrescriptionModal(false)}
+        onSuccess={handlePrescriptionSuccess}
+        pharmacyId={localStorage.getItem('pharmacyId') || ''}
+      />
     </div>
   );
 }

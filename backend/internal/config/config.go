@@ -14,7 +14,7 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://user:password@localhost/pharmacy?sslmode=disable"),
+		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/pharmacy?sslmode=disable"),
 		JWTSecret:   getEnv("JWT_SECRET", "your-secret-key"),
 		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
 		Port:        getEnv("PORT", "8080"),

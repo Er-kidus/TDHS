@@ -56,11 +56,11 @@ export function AddInventoryModal({ isOpen, onClose, onSuccess, pharmacyId }: Ad
     }
   };
 
-  const filteredMedications = medications.filter(med =>
+  const filteredMedications = medications?.filter(med =>
     med.brand_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     med.generic_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     med.ndc_code?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ) || [];
 
   const handleMedicationSelect = (medication: Medication) => {
     setSelectedMedication(medication);
@@ -337,7 +337,7 @@ export function AddInventoryModal({ isOpen, onClose, onSuccess, pharmacyId }: Ad
             </button>
             <button
               type="submit"
-              disabled={loading || !formData.medication_id}
+              disabled={loading}
               className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? (

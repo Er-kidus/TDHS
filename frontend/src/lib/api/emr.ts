@@ -1,13 +1,12 @@
 import { Patient } from '@/types';
 
-// Mock EMR API for integration
-export const emrAPI = {
-  searchPatients: async (query: string, pharmacyId?: string): Promise<Patient[]> => {
-    console.log(`Searching EMR for patients: ${query} (Pharmacy: ${pharmacyId})`);
-    
-    // In a real implementation, this would call an external EMR system API
-    // For now, we return mock data
-    return [
+// Helper functions for localStorage
+const getStoredPatients = (): Patient[] => {
+  if (typeof window === 'undefined') return [];
+  const stored = localStorage.getItem('patients');
+  if (!stored) {
+    // Initialize with sample data if empty
+    const samplePatients = [
       {
         id: 'p1',
         first_name: 'John',
@@ -59,13 +58,74 @@ export const emrAPI = {
         active_medications: ['Metformin 500mg', 'Glipizide 5mg']
       }
     ];
+    localStorage.setItem('patients', JSON.stringify(samplePatients));
+    return samplePatients;
+  }
+  return JSON.parse(stored);
+};
+
+const setStoredPatients = (patients: Patient[]): void => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('patients', JSON.stringify(patients));
+};
+
+// EMR API for integration
+export const emrAPI = {
+  searchPatients: async (query: string, pharmacyId?: string): Promise<Patient[]> => {
+    console.log(`Searching EMR for patients: ${query} (Pharmacy: ${pharmacyId})`);
+    
+    try {
+      const patients = getStoredPatients();
+      
+      if (!query) {
+        return patients;
+      }
+      
+      const lowerQuery = query.toLowerCase();
+      return patients.filter(patient =>
+        patient.first_name?.toLowerCase().includes(lowerQuery) ||
+        patient.last_name?.toLowerCase().includes(lowerQuery) ||
+        patient.national_id?.includes(lowerQuery) ||
+        patient.phone?.includes(lowerQuery)
+      );
+    } catch (error) {
+      console.error('Failed to load patients from localStorage:', error);
+      return [];
+    }
   },
 
   getPatient: async (id: string): Promise<Patient> => {
-    // Mock single patient retrieval
-    const patients = await emrAPI.searchPatients('');
+    const patients = getStoredPatients();
     const patient = patients.find(p => p.id === id);
     if (!patient) throw new Error('Patient not found');
     return patient;
+  },
+
+  createPatient: async (patientData: any): Promise<Patient> => {
+    const patients = getStoredPatients();
+    const newPatient = {
+      ...patientData,
+      id: patientData.id || `PAT-${Date.now()}`,
+      created_at: new Date().toISOString()
+    };
+    patients.push(newPatient);
+    setStoredPatients(patients);
+    return newPatient;
+  },
+
+  updatePatient: async (id: string, patientData: Partial<Patient>): Promise<Patient> => {
+    const patients = getStoredPatients();
+    const index = patients.findIndex(p => p.id === id);
+    if (index === -1) throw new Error('Patient not found');
+    
+    patients[index] = { ...patients[index], ...patientData };
+    setStoredPatients(patients);
+    return patients[index];
+  },
+
+  deletePatient: async (id: string): Promise<void> => {
+    const patients = getStoredPatients();
+    const filtered = patients.filter(p => p.id !== id);
+    setStoredPatients(filtered);
   }
 };
