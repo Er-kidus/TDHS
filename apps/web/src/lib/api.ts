@@ -3,8 +3,24 @@ export type ApiErrorBody = { error?: string };
 function getApiBaseUrl(): string {
   const configured = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
   if (configured) return configured;
-  // In dev, Vite proxy handles /api -> gateway
-  return "/api";
+
+  // In dev, Vite proxy handles /api -> gateway.
+  if (import.meta.env.DEV) return "/api";
+
+  // In local preview/standalone, there is no dev proxy. Default to the gateway.
+  try {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const hostname = origin ? new URL(origin).hostname : "";
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:8000";
+    }
+  } catch {
+    // fall through
+  }
+
+  // In production builds, VITE_API_BASE_URL should be configured.
+  // Fall back to relative requests to the current origin.
+  return "";
 }
 
 export async function apiFetch(path: string, init?: RequestInit & { token?: string | null }) {

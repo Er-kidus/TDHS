@@ -1303,3 +1303,12 @@ func (h *Handler) OrgSystemOverview(w http.ResponseWriter, r *http.Request) {
 	}
 	h.writeJSON(w, http.StatusOK, item)
 }
+
+func (h *Handler) OrgListSystemRoles(w http.ResponseWriter, r *http.Request) {
+	roles, err := h.svcs.OrgApplications.ListSystemRoles()
+	if err != nil {
+		h.errorJSON(w, http.StatusInternalServerError, "failed to load system roles")
+		return
+	}
+	h.writeJSON(w, http.StatusOK, roles)
+}

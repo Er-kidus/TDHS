@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { TelemedicineRoomClient } from "@/components/telemedicine/TelemedicineRoomClient";
 
 type TelemedicineRoomPageProps = {
   searchParams?: Promise<{
@@ -13,9 +13,6 @@ export default async function TelemedicineRoomPage({ searchParams }: Telemedicin
   const params = searchParams ? await searchParams : undefined;
   const sessionId = params?.session_id || params?.sessionId || "";
   const doctorName = params?.doctor_name || params?.doctorName || "";
-  const query = new URLSearchParams();
-  if (sessionId) query.set("session_id", sessionId);
-  if (doctorName) query.set("doctor_name", doctorName);
-  const suffix = query.toString() ? `?${query.toString()}` : "";
-  redirect(`/telemedicine${suffix}`);
+
+  return <TelemedicineRoomClient initialSessionId={sessionId} initialDoctorName={doctorName} />;
 }

@@ -128,7 +128,7 @@ function rewriteLiveKitUrlForHttpsPortal(urlValue: unknown, request: Request): u
 	}
 	const bestHost = getBestRequestHost(request);
 	if (!bestHost) return urlValue;
-	return `wss://${bestHost.host}/livekit`;
+	return `wss://${bestHost.host}`;
 }
 
 export async function POST(request: Request) {

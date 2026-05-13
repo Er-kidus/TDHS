@@ -1,13 +1,46 @@
 "use client";
 
 import { useState } from "react";
-import { Bot, Send, Sparkles, X } from "lucide-react";
+import { Bot, Loader2, Send, Sparkles, X } from "lucide-react";
 import { useAiContextStore } from "@/stores/aiContextStore";
 
 export function AIAssistantPanel() {
   const [openMobile, setOpenMobile] = useState(false);
   const [message, setMessage] = useState("");
+  const [reply, setReply] = useState("");
+  const [history, setHistory] = useState<Array<{ role: "user" | "assistant"; content: string }>>([
+    { role: "assistant", content: "Ask a care, telemedicine, medication, or appointment question and I’ll route it through Gemini when available." },
+  ]);
+  const [loading, setLoading] = useState(false);
   const context = useAiContextStore();
+
+  async function sendMessage() {
+    const text = message.trim();
+    if (!text || loading) return;
+
+    setLoading(true);
+    setReply("");
+    setHistory((current) => [...current, { role: "user", content: text }]);
+    setMessage("");
+
+    try {
+      const res = await fetch("/api/ai/router", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: context.mode, message: text }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { reply?: string; intent?: string; skills?: string[] };
+      const nextReply = data.reply || "No response from AI router.";
+      setReply(nextReply);
+      setHistory((current) => [...current, { role: "assistant", content: nextReply }]);
+    } catch {
+      const fallback = "Failed to reach the AI router.";
+      setReply(fallback);
+      setHistory((current) => [...current, { role: "assistant", content: fallback }]);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const content = (
     <div className="h-full flex flex-col rounded-2xl border border-border bg-card shadow-soft overflow-hidden">
@@ -28,12 +61,18 @@ export function AIAssistantPanel() {
         <div className="rounded-lg border border-border bg-background p-2.5 text-xs text-muted-foreground">
           Context: {context.page} • {context.patientName || "patient"}
         </div>
-        <div className="rounded-lg border border-border bg-background p-3 text-sm">
-          I can help with symptoms, medication, appointments, and recommendations.
+        <div className="space-y-2">
+          {history.map((entry, index) => (
+            <div
+              key={`${entry.role}-${index}`}
+              className={entry.role === "assistant" ? "rounded-lg border border-border bg-background p-3 text-sm" : "rounded-lg bg-primary/10 p-3 text-sm"}
+            >
+              <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">{entry.role === "assistant" ? "Assistant" : "You"}</p>
+              <p>{entry.content}</p>
+            </div>
+          ))}
         </div>
-        <div className="rounded-lg bg-primary/10 p-3 text-sm">
-          Try: &quot;Reschedule my next appointment&quot; or &quot;Check medication interaction&quot;.
-        </div>
+        {reply ? <div className="rounded-lg border border-border bg-background p-3 text-sm text-muted-foreground">Latest response: {reply}</div> : null}
       </div>
 
       <div className="p-3 border-t border-border flex gap-2">
@@ -42,9 +81,15 @@ export function AIAssistantPanel() {
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Ask AI assistant"
           className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              void sendMessage();
+            }
+          }}
         />
-        <button className="h-10 w-10 rounded-lg bg-primary text-primary-foreground inline-flex items-center justify-center hover:bg-primary/90" aria-label="Send to AI">
-          <Send className="h-4 w-4" />
+        <button onClick={() => void sendMessage()} disabled={loading || !message.trim()} className="h-10 w-10 rounded-lg bg-primary text-primary-foreground inline-flex items-center justify-center hover:bg-primary/90 disabled:opacity-60" aria-label="Send to AI">
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </button>
       </div>
     </div>

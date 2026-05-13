@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
 
-type View = "overview" | "queue" | "workflow";
+type View = "overview" | "queue" | "prescription" | "lab" | "workflow";
 
 export function DoctorWorkspaceShell({
   view,
@@ -25,24 +25,17 @@ export function DoctorWorkspaceShell({
     <div className="mx-auto flex max-w-screen-2xl flex-col gap-5">
       <header className="border-b border-border pb-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div>
+          {/* <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Organization Mode</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight">Doctor Workspace</h1>
-          </div>
+          </div> */}
           <div className="flex flex-wrap items-center gap-2">
-            <Link href="/dashboard/telemedicine" className="rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted">
-              Telemedicine
-            </Link>
+           
             <button type="button" onClick={onRefresh} className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted">
               <RefreshCw className="h-4 w-4" /> Refresh
             </button>
           </div>
         </div>
-        <nav className="mt-4 flex flex-wrap gap-2" aria-label="Doctor workspace sections">
-          <SectionLink href="/dashboard/doctor" active={view === "overview"} label="Overview" />
-          <SectionLink href="/dashboard/doctor/queue" active={view === "queue"} label="Queue" />
-          <SectionLink href="/dashboard/doctor/workflow" active={view === "workflow"} label="Patient Workflow" />
-        </nav>
       </header>
 
       <StatusMessage tone="danger" message={loadingError} />

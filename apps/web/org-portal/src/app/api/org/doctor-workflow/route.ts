@@ -30,6 +30,18 @@ function appendNote(existing: string | undefined, note: string) {
   return [existing || "", note].filter(Boolean).join("\n");
 }
 
+function normalizeServiceArea(value: unknown, testName?: string, indication?: string) {
+  if (value === "lab" || value === "imaging") {
+    return value;
+  }
+
+  const haystack = `${testName || ""} ${indication || ""}`.toLowerCase();
+  if (/(x[- ]?ray|ct\b|mri\b|ultrasound|sonogram|radiolog|scan|imaging)/.test(haystack)) {
+    return "imaging";
+  }
+  return "lab";
+}
+
 async function fetchAppointment(auth: Record<string, string>, appointmentId: string) {
   const upstream = await backendFetch(`/appointments/${encodeURIComponent(appointmentId)}`, {
     method: "GET",
@@ -76,6 +88,7 @@ export async function GET(request: Request) {
   const kind = searchParams.get("kind");
   const orderId = searchParams.get("orderId");
   const dob = searchParams.get("dob");
+  const serviceArea = searchParams.get("serviceArea");
   const store = await readDoctorWorkflowStore();
 
   const filtered = {
@@ -85,7 +98,8 @@ export async function GET(request: Request) {
         (!appointmentId || item.appointmentId === appointmentId) &&
         (!patientId || item.patientId === patientId) &&
         (!orderId || item.orderId.toLowerCase() === orderId.toLowerCase()) &&
-        (!dob || item.patientDob.toLowerCase() === dob.toLowerCase()),
+        (!dob || item.patientDob.toLowerCase() === dob.toLowerCase()) &&
+        (!serviceArea || item.serviceArea === serviceArea),
     ),
     followUps: store.followUps.filter((item) => (!appointmentId || item.sourceAppointmentId === appointmentId || item.followUpAppointmentId === appointmentId) && (!patientId || item.patientId === patientId)),
     visitSummaries: store.visitSummaries.filter((item) => (!appointmentId || item.appointmentId === appointmentId) && (!patientId || item.patientId === patientId)),
@@ -136,6 +150,7 @@ export async function POST(request: Request) {
       const testName = typeof body.testName === "string" ? body.testName.trim() : "";
       const indication = typeof body.indication === "string" ? body.indication.trim() : "";
       const priority = (typeof body.priority === "string" ? body.priority : "routine") as DoctorWorkflowPriority;
+      const serviceArea = normalizeServiceArea(body.serviceArea, testName, indication);
 
       if (!testName) return jsonError("testName is required");
       if (!indication) return jsonError("indication is required");
@@ -148,6 +163,7 @@ export async function POST(request: Request) {
         patientId,
         patientName,
         patientDob,
+        serviceArea,
         testName,
         indication,
         priority,
@@ -156,10 +172,10 @@ export async function POST(request: Request) {
 
       await updateAppointment(auth, appointmentId, {
         status: "lab_waiting",
-        assignedStaffType: "lab",
+        assignedStaffType: serviceArea === "imaging" ? "radiology" : "lab",
         notes: appendNote(
           appointment.notes,
-          `[Doctor Workflow] Lab order ${labOrder.orderId} for ${labOrder.testName} requested (${labOrder.priority}) at ${timestamp}. Indication: ${labOrder.indication}`,
+          `[Doctor Workflow] ${serviceArea === "imaging" ? "Imaging" : "Lab"} order ${labOrder.orderId} for ${labOrder.testName} requested (${labOrder.priority}) at ${timestamp}. Indication: ${labOrder.indication}`,
         ),
       });
 

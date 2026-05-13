@@ -29,6 +29,7 @@ PORTS = {
     "ngrok API": 4040,
     "ngrok API (Fallback)": 4041,
     "Front Door": 8090,
+    "pgadmin": 5050,
 }
 
 
@@ -932,13 +933,13 @@ class StackDashboard(tk.Tk):
             "LIVEKIT_PUBLIC_URL": f"ws://{self.local_ip}:7880",
         }
         self.run_command(
-            [self.docker_bin, "compose", "up", "-d", "postgres", "redis", "livekit", "api-gateway", "front-door"],
+            [self.docker_bin, "compose", "up", "-d", "postgres", "redis", "livekit", "api-gateway", "front-door", "pgadmin"],
         "Start backend",
             env_overrides=backend_env,
         )
 
     def stop_backend(self) -> None:
-        self.run_command([self.docker_bin, "compose", "stop", "api-gateway", "livekit", "redis", "postgres", "front-door"], "Stop backend")
+        self.run_command([self.docker_bin, "compose", "stop", "api-gateway", "livekit", "redis", "postgres", "front-door", "pgadmin"], "Stop backend")
 
     def _start_managed_process(self, key: str) -> None:
         managed = self.processes.get(key)

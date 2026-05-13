@@ -115,6 +115,7 @@ func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
 	mux.HandleFunc("PATCH /org/users/{id}/status", h.RequireOrgRole("superadmin")(h.OrgSetUserStatus))
 	mux.HandleFunc("POST /org/users/{id}/reset-password", h.RequireOrgRole("superadmin")(h.OrgResetUserPassword))
 	mux.HandleFunc("GET /org/system/overview", h.RequireOrgRole("superadmin")(h.OrgSystemOverview))
+	mux.HandleFunc("GET /org/system/roles", h.RequireOrgRole("superadmin")(h.OrgListSystemRoles))
 	mux.HandleFunc("GET /org/doctors", h.RequireOrgAnyRole("admin", "doctor", "nurse", "staff", "superadmin")(h.OrgListDoctors))
 	mux.HandleFunc("POST /org/doctors", h.RequireOrgAnyRole("admin", "superadmin")(h.OrgCreateDoctor))
 	mux.HandleFunc("GET /org/pharmacies", h.RequireOrgAnyRole("admin", "superadmin")(h.OrgListPharmacies))

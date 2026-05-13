@@ -1,4 +1,4 @@
-export type OrgRole = "superadmin" | "admin" | "doctor" | "nurse" | "pharmacist" | "staff";
+export type OrgRole = "superadmin" | "admin" | "doctor" | "nurse" | "pharmacist" | "lab" | "imaging" | "staff";
 export type OrgNavMode = "organization" | "telemedicine" | "pharmacy";
 
 type OrgNavItem = {
@@ -18,6 +18,12 @@ export function normalizeOrgRole(value: string | null | undefined): OrgRole {
   }
   if (["doctor", "physician", "consultant", "specialist", "resident", "surgeon", "obgyn", "medical-director", "medical_director"].includes(role)) {
     return "doctor";
+  }
+  if (["lab", "laboratory", "lab-tech", "lab_tech", "lab-technician", "lab_technician", "laboratory-technician", "laboratory_technician", "medical-laboratory-scientist", "medical_laboratory_scientist"].includes(role)) {
+    return "lab";
+  }
+  if (["imaging", "radiology", "radiology-tech", "radiology_tech", "radiology-technician", "radiology_technician", "radiographer", "sonographer", "sonographer-ultrasound", "sonographer_ultrasound", "ct-mri-technician", "ct_mri_technician"].includes(role)) {
+    return "imaging";
   }
   if (["nurse", "midwife", "triage-nurse", "triage_nurse", "staff-nurse", "staff_nurse", "icu-nurse", "icu_nurse"].includes(role)) {
     return "nurse";
@@ -40,6 +46,10 @@ export function roleHomePath(role: OrgRole): string {
       return "/dashboard/nurse";
     case "pharmacist":
       return "/dashboard/pharmacy";
+    case "lab":
+      return "/dashboard/lab";
+    case "imaging":
+      return "/dashboard/imaging";
     default:
       return "/dashboard/reception";
   }
@@ -118,6 +128,14 @@ export function isPathAllowedForRole(pathname: string, role: OrgRole): boolean {
     return pathname === "/dashboard/pharmacy" || pathname.startsWith("/dashboard/pharmacy/") || pathname === "/patients" || pathname.startsWith("/patients/") || pathname === "/settings" || pathname.startsWith("/settings/");
   }
 
+  if (role === "lab") {
+    return pathname === "/dashboard/lab" || pathname.startsWith("/dashboard/lab/") || pathname === "/patients" || pathname.startsWith("/patients/") || pathname === "/settings" || pathname.startsWith("/settings/");
+  }
+
+  if (role === "imaging") {
+    return pathname === "/dashboard/imaging" || pathname.startsWith("/dashboard/imaging/") || pathname === "/patients" || pathname.startsWith("/patients/") || pathname === "/settings" || pathname.startsWith("/settings/");
+  }
+
   return pathname === "/dashboard/reception" || pathname.startsWith("/dashboard/reception/") || pathname === "/appointments" || pathname.startsWith("/appointments/");
 }
 
@@ -157,7 +175,8 @@ export function navigationForRole(role: OrgRole, mode?: OrgNavMode): Array<{ hre
     return filterNavigationByMode([
       { href: "/dashboard/doctor", label: "Organization Dashboard", modes: ["organization"] },
       { href: "/dashboard/doctor/queue", label: "Queue", modes: ["organization"] },
-      { href: "/dashboard/doctor/workflow", label: "Patient Workflow", modes: ["organization"] },
+      { href: "/dashboard/doctor/prescriptions", label: "Prescription", modes: ["organization"] },
+      { href: "/dashboard/doctor/labs", label: "Lab", modes: ["organization"] },
       { href: "/dashboard/telemedicine", label: "Telemedicine Home", modes: ["telemedicine"] },
       { href: "/dashboard/telemedicine/queue", label: "Telemedicine Queue", modes: ["telemedicine"] },
       { href: "/dashboard/telemedicine/profile", label: "My Telemedicine Profile", modes: ["telemedicine"] },
@@ -188,6 +207,22 @@ export function navigationForRole(role: OrgRole, mode?: OrgNavMode): Array<{ hre
       { href: "/patients", label: "Patients" },
       { href: "/settings", label: "Settings" },
     ], mode);
+  }
+
+  if (role === "lab") {
+    return [
+      { href: "/dashboard/lab", label: "Lab Dashboard" },
+      { href: "/patients", label: "Patients" },
+      { href: "/settings", label: "Settings" },
+    ];
+  }
+
+  if (role === "imaging") {
+    return [
+      { href: "/dashboard/imaging", label: "Imaging Dashboard" },
+      { href: "/patients", label: "Patients" },
+      { href: "/settings", label: "Settings" },
+    ];
   }
 
   return [

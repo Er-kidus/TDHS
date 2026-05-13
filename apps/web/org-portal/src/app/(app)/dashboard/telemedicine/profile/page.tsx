@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { BadgeCheck, CalendarClock, Globe2, ShieldCheck } from "lucide-react";
 
 type TelemedicineProfile = {
   id: string;
@@ -133,23 +134,45 @@ export default function TelemedicineProfilePage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4 p-4 md:p-6">
-      <header className="rounded-2xl border border-border bg-card p-5 shadow-soft">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Telemedicine Superapp</p>
-        <h1 className="text-2xl font-semibold">My Telemedicine Profile</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Doctors and nurses configure their own telemedicine mode, specialty, rates, and channels here.</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Link href="/dashboard/telemedicine" className="rounded-lg border border-border bg-background px-3 py-2 text-sm">Workspace</Link>
-          <Link href="/dashboard/telemedicine/queue" className="rounded-lg border border-border bg-background px-3 py-2 text-sm">Queue</Link>
+    <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-6">
+      <header className="rounded-[28px] border border-border bg-card p-6 shadow-soft">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="space-y-3">
+            <p className="text-xs uppercase tracking-[0.3em] text-primary/80">Telemedicine Superapp</p>
+            <h1 className="text-3xl font-semibold tracking-tight">My Telemedicine Profile</h1>
+            <p className="max-w-2xl text-sm text-muted-foreground">Configure your telemedicine identity, rates, availability, and supported consultation modes in one place.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/dashboard/telemedicine" className="rounded-2xl border border-border bg-background px-4 py-2.5 text-sm hover:bg-muted/40">Workspace</Link>
+            <Link href="/dashboard/telemedicine/queue" className="rounded-2xl border border-border bg-background px-4 py-2.5 text-sm hover:bg-muted/40">Queue</Link>
+          </div>
         </div>
       </header>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground"><BadgeCheck className="h-4 w-4" /> Profile status</div>
+          <p className="mt-2 text-xl font-semibold">{telemedicineEnabled ? "Telemedicine on" : "Organization mode"}</p>
+          <p className="mt-1 text-sm text-muted-foreground">Your current operating mode and access posture.</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground"><Globe2 className="h-4 w-4" /> Modes</div>
+          <p className="mt-2 text-xl font-semibold">{telemedicineModes.length}</p>
+          <p className="mt-1 text-sm text-muted-foreground">Supported consultation channels configured.</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground"><ShieldCheck className="h-4 w-4" /> Billing</div>
+          <p className="mt-2 text-xl font-semibold">{telemedicineCurrency} {telemedicineRate || "0"}</p>
+          <p className="mt-1 text-sm text-muted-foreground">Current consultation rate for telemedicine visits.</p>
+        </div>
+      </div>
 
       {loading ? <p className="text-sm text-muted-foreground">Loading profile...</p> : null}
       {error ? <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
       {status ? <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{status}</p> : null}
 
       {!loading ? (
-        <section className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+        <section className="rounded-[28px] border border-border bg-card p-5 shadow-soft">
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <p className="text-xs text-muted-foreground">Name</p>
@@ -159,30 +182,36 @@ export default function TelemedicineProfilePage() {
               <p className="text-xs text-muted-foreground">Role</p>
               <p className="text-sm font-medium">{profile?.role || "-"}</p>
             </div>
-            <div className="md:col-span-2 rounded-xl border border-border bg-background p-3">
-              <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Practitioner work mode</p>
+            <div className="md:col-span-2 rounded-2xl border border-border bg-background p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Practitioner work mode</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Switch between organization duties and telemedicine-only work.</p>
+                </div>
+                <CalendarClock className="h-5 w-5 text-muted-foreground" />
+              </div>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => requestWorkModeSwitch("organization")}
-                  className={"rounded-lg px-3 py-2 text-sm " + (workMode === "organization" ? "bg-primary text-primary-foreground" : "border border-border")}
+                  className={"rounded-2xl px-4 py-2.5 text-sm " + (workMode === "organization" ? "bg-primary text-primary-foreground" : "border border-border bg-background")}
                 >
                   Organization mode
                 </button>
                 <button
                   type="button"
                   onClick={() => requestWorkModeSwitch("telemedicine")}
-                  className={"rounded-lg px-3 py-2 text-sm " + (workMode === "telemedicine" ? "bg-primary text-primary-foreground" : "border border-border")}
+                  className={"rounded-2xl px-4 py-2.5 text-sm " + (workMode === "telemedicine" ? "bg-primary text-primary-foreground" : "border border-border bg-background")}
                 >
                   Telemedicine gig mode
                 </button>
               </div>
               {pendingWorkMode ? (
-                <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                <div className="mt-3 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
                   <p>Confirm switch to <span className="font-semibold">{pendingWorkMode === "telemedicine" ? "Telemedicine gig mode" : "Organization mode"}</span>.</p>
                   <div className="mt-2 flex gap-2">
-                    <button type="button" onClick={confirmWorkModeSwitch} className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-medium text-amber-950">Confirm switch</button>
-                    <button type="button" onClick={() => setPendingWorkMode(null)} className="rounded-lg border border-amber-300 px-3 py-1.5 text-xs">Cancel</button>
+                    <button type="button" onClick={confirmWorkModeSwitch} className="rounded-2xl bg-amber-500 px-3 py-1.5 text-xs font-medium text-amber-950">Confirm switch</button>
+                    <button type="button" onClick={() => setPendingWorkMode(null)} className="rounded-2xl border border-amber-300 px-3 py-1.5 text-xs">Cancel</button>
                   </div>
                 </div>
               ) : null}

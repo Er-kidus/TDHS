@@ -1,21 +1,18 @@
 "use client";
 
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { StatCard } from "@/components/StatCard";
 import {
   Activity,
   AlertTriangle,
-  ArrowUpRight,
-  Bell,
-  CalendarDays,
   Clock3,
   CreditCard,
-  FileBarChart2,
   MessageSquare,
   Pill,
   Sparkles,
 } from "lucide-react";
+import { PatientLabResultsSection } from "@/components/PatientLabResultsSection";
+import { PatientPrescriptionsSection } from "@/components/PatientPrescriptionsSection";
 
 type Appointment = {
   id: string;
@@ -29,9 +26,30 @@ type Patient = {
 };
 
 type LabResult = {
-  test: string;
-  status: "Completed" | "Pending";
-  date: string;
+  id: string;
+  test_name?: string;
+  test?: string;
+  status?: string;
+  result_value?: string;
+  result_notes?: string;
+  normal_range?: string;
+  abnormal?: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
+type Prescription = {
+  id: string;
+  medication_name?: string;
+  medication?: string;
+  dosage?: string;
+  frequency?: string;
+  prescribing_doctor?: string;
+  status?: string;
+  instructions?: string;
+  duration_days?: number;
+  created_at?: string;
+  updated_at?: string;
 };
 
 type Message = {
@@ -54,6 +72,7 @@ export function PatientDashboardClient({
   patient,
   appointments,
   labs,
+  prescriptions,
   messages,
   notifications,
   stats,
@@ -61,11 +80,13 @@ export function PatientDashboardClient({
   patient: Patient;
   appointments: Appointment[];
   labs?: LabResult[];
+  prescriptions?: Prescription[];
 messages?: Message[];
 notifications?: Notification[];
 stats?: Stats;
 }) {
   const nextAppointment = appointments?.[0];
+  const activePrescriptions = prescriptions?.length ?? stats?.activePrescriptions ?? 0;
 
   return (
     <div className="max-w-screen-2xl mx-auto space-y-6 animate-fade-up">
@@ -94,7 +115,7 @@ stats?: Stats;
         <StatCard
           icon={<Pill className="h-4 w-4" />}
           label="Active Prescriptions"
-          value={stats?.activePrescriptions?.toString() ?? "—"}
+          value={activePrescriptions ? activePrescriptions.toString() : "—"}
           hint="Pharmacy system"
         />
 
@@ -131,40 +152,9 @@ stats?: Stats;
         )}
       </section>
 
-      {/* LAB RESULTS */}
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-soft space-y-3">
-        <h3 className="text-base font-semibold flex items-center gap-2">
-          <FileBarChart2 className="h-4 w-4 text-info" />
-          Lab Results
-        </h3>
+      <PatientPrescriptionsSection prescriptions={prescriptions ?? []} />
 
-        {labs?.length ? (
-          labs.map((l) => (
-            <div
-              key={l.test}
-              className="rounded-lg border border-border bg-background px-3 py-2 flex items-center justify-between text-sm"
-            >
-              <div>
-                <p className="font-medium">{l.test}</p>
-                <p className="text-xs text-muted-foreground">{l.date}</p>
-              </div>
-
-              <span
-                className={
-                  "text-xs rounded-full px-2 py-0.5 " +
-                  (l.status === "Pending"
-                    ? "bg-warning/15 text-warning"
-                    : "bg-success/15 text-success")
-                }
-              >
-                {l.status}
-              </span>
-            </div>
-          ))
-        ) : (
-          <p className="text-sm text-muted-foreground">No lab results</p>
-        )}
-      </section>
+      <PatientLabResultsSection labs={labs ?? []} />
 
       {/* MESSAGES */}
       <section className="rounded-2xl border border-border bg-card p-5 shadow-soft space-y-3">

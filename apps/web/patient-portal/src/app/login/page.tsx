@@ -16,6 +16,24 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+async function readErrorMessage(response: Response, fallback: string) {
+  try {
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      const body = (await response.json()) as { error?: string; message?: string };
+      return body?.error || body?.message || fallback;
+    }
+
+    const text = await response.text();
+    if (text && !text.toLowerCase().includes("<!doctype")) {
+      return text;
+    }
+  } catch {
+    // Keep the original fallback when the response cannot be parsed.
+  }
+  return fallback;
+}
+
 export default function LoginPage() {
   const router = useRouter();
 
@@ -95,18 +113,39 @@ export default function LoginPage() {
     setSubmitting(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
+      let res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
       });
 
+      if (res.status === 404) {
+        const gatewayBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+        const directRes = await fetch(`${gatewayBase}/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(values),
+        });
+
+        if (directRes.ok) {
+          const body = (await directRes.json().catch(() => ({}))) as { token?: string };
+          if (body?.token) {
+            document.cookie = `patient_token=${body.token}; path=/; SameSite=Lax`;
+            router.push("/dashboard");
+            router.refresh();
+            return;
+          }
+        }
+
+        res = directRes;
+      }
+
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error || "Login failed");
+        throw new Error(await readErrorMessage(res, "Login failed"));
       }
 
       router.push("/dashboard");
+      router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Login failed");
     } finally {

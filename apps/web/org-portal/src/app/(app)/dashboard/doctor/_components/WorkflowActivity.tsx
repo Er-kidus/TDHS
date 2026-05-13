@@ -15,7 +15,7 @@ export function WorkflowActivity({ workflow }: { workflow: WorkflowPayload }) {
             id: item.id,
             title: item.testName,
             meta: `${formatStatusLabel(item.status)} | ${item.priority}`,
-            detail: item.indication,
+            detail: (item as any).results?.value ? `${(item as any).results.value} — ${(item as any).results.notes || item.indication}` : item.indication,
           }))}
         />
         <ActivityList

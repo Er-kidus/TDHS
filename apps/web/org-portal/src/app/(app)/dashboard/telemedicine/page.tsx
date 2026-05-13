@@ -1,10 +1,15 @@
 "use client";
 
 import { Component, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, CalendarClock, MessageSquare, Mic, MicOff, PhoneOff, RefreshCw, Sparkles, Video, VideoOff } from "lucide-react";
+import { Activity, AlertTriangle, CalendarClock, MessageSquare, Mic, MicOff, PhoneOff, RefreshCw, ShieldCheck, Sparkles, Video, VideoOff } from "lucide-react";
 import { ConnectionStateToast, LiveKitRoom, ParticipantTile, RoomAudioRenderer, useConnectionState, useLocalParticipant, useTracks } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import Link from "next/link";
+import { TelemedicineArtifactCard } from "@/components/telemedicine/TelemedicineArtifactCard";
+import { TelemedicineFeatureModal } from "@/components/telemedicine/TelemedicineFeatureModal";
+import { TelemedicinePractitionerCard } from "@/components/telemedicine/TelemedicinePractitionerCard";
+import { TelemedicineQueuePreviewCard } from "@/components/telemedicine/TelemedicineQueuePreviewCard";
+import { TelemedicineStatCard } from "@/components/telemedicine/TelemedicineStatCard";
 
 type VideoConferenceBoundaryProps = {
   children: ReactNode;
@@ -132,7 +137,7 @@ type TranscriptLine = {
   speaker: string;
   text: string;
   source: "voice" | "manual";
-  createdAt: string;
+  createdAt: string;z
 };
 
 type SpeechRecognitionAlternativeLike = {
@@ -209,6 +214,38 @@ function normalizeLiveKitServerUrl(rawUrl: string): string {
   return rawUrl;
 }
 
+function stripLiveKitProxyPath(rawUrl: string): string {
+  if (!rawUrl) return rawUrl;
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    return rawUrl;
+  }
+  if (!parsed.pathname.startsWith("/livekit")) {
+    return rawUrl;
+  }
+
+  const configuredOrigin = (process.env.NEXT_PUBLIC_LOCAL_NETWORK_ORIGIN || "").trim();
+  if (configuredOrigin) {
+    try {
+      const configuredUrl = new URL(configuredOrigin);
+      if (isPrivateOrLoopbackHost(configuredUrl.hostname)) {
+        return rawUrl;
+      }
+    } catch {
+      // Ignore malformed local network overrides and continue with the public-host fallback.
+    }
+  }
+
+  if (isPrivateOrLoopbackHost(parsed.hostname)) {
+    return rawUrl;
+  }
+
+  parsed.pathname = parsed.pathname.replace(/^\/livekit(?=\/|$)/, "") || "/";
+  return parsed.toString();
+}
+
 type ApiPayload = Record<string, unknown> | string | null;
 
 async function readJsonResponse(response: Response): Promise<ApiPayload> {
@@ -248,6 +285,8 @@ export default function TelemedicinePage() {
   const [joinRequested, setJoinRequested] = useState(false);
   const [roomNotes, setRoomNotes] = useState("");
   const [roomMode, setRoomMode] = useState<"video" | "audio">("video");
+  const [featureTab, setFeatureTab] = useState<"ai" | "chart" | "notes" | "chat">("ai");
+  const [featurePanelOpen, setFeaturePanelOpen] = useState(true);
   const [roomStatus, setRoomStatus] = useState("");
   const [chatInput, setChatInput] = useState("");
   const [roomArtifacts, setRoomArtifacts] = useState<Artifact[]>([]);
@@ -264,6 +303,7 @@ export default function TelemedicinePage() {
   const [roomMountVersion, setRoomMountVersion] = useState(0);
   const [videoRuntimeIssue, setVideoRuntimeIssue] = useState("");
   const speechRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const autoJoinAttemptedRef = useRef(false);
   const resolvedRoomName = sessionId ? `telemedicine-${sessionId}` : "";
   const roomInstanceKey = `${resolvedRoomName}:${roomMode}:${roomMountVersion}:${token.slice(0, 16)}`;
   const localNetworkBaseUrl = useMemo(() => {
@@ -317,7 +357,6 @@ export default function TelemedicinePage() {
         const source: "voice" | "manual" = item.source === "voice" ? "voice" : "manual";
         return {
           id: typeof item.id === "string" ? item.id : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-          speaker: typeof item.speaker === "string" ? item.speaker : "Unknown speaker",
           text: typeof item.content === "string" ? item.content : "",
           source,
           createdAt: typeof item.occurred_at === "string" ? item.occurred_at : new Date().toISOString(),
@@ -483,6 +522,16 @@ export default function TelemedicinePage() {
   useEffect(() => {
     setRoomName(resolvedRoomName);
   }, [resolvedRoomName]);
+
+  useEffect(() => {
+    if (!sessionId.trim() || joinRequested || token || autoJoinAttemptedRef.current) {
+      return;
+    }
+    autoJoinAttemptedRef.current = true;
+    void fetchRoomToken().finally(() => {
+      autoJoinAttemptedRef.current = false;
+    });
+  }, [fetchRoomToken, joinRequested, sessionId, token]);
 
   useEffect(() => {
     setSpeakerLabel(displayName || "Clinician");
@@ -661,7 +710,7 @@ export default function TelemedicinePage() {
         }
         const nextServerUrl = typeof payload.url === "string" ? payload.url : typeof payload.serverUrl === "string" ? payload.serverUrl : "";
         const nextResolvedRoomName = typeof payload.room_name === "string" ? payload.room_name : typeof payload.roomName === "string" ? payload.roomName : nextRoomName;
-        const normalizedServerUrl = normalizeLiveKitServerUrl(nextServerUrl);
+        const normalizedServerUrl = stripLiveKitProxyPath(normalizeLiveKitServerUrl(nextServerUrl));
         if (!normalizedServerUrl) {
           throw new Error("LiveKit server URL is missing from token response");
         }
@@ -674,6 +723,8 @@ export default function TelemedicinePage() {
         if (explicitMode) {
           setRoomMode(explicitMode);
         }
+        setFeatureTab("ai");
+        setFeaturePanelOpen(true);
         setRoomMountVersion((value) => value + 1);
         setJoinRequested(true);
         setRoomStatus("Telemedicine room ready.");
@@ -823,23 +874,261 @@ export default function TelemedicinePage() {
     const shortId = sessionId.trim().slice(0, 8).toUpperCase();
     return `Telemedicine Room ${shortId}`;
   }, [sessionId]);
+  const aiDraftSummary = useMemo(() => {
+    const segments = [roomNotes.trim(), symptomsInput.trim(), possibleSolutions.trim()].filter(Boolean);
+    return segments.length > 0 ? segments.join("\n\n") : "Draft a concise encounter summary, confirm the plan, then save to the chart.";
+  }, [possibleSolutions, roomNotes, symptomsInput]);
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-screen-2xl mx-auto">
-      <div>
-        <h1 className="text-xl font-semibold">Telemedicine Workspace</h1>
-        <p className="text-sm text-muted-foreground">Join a live session, keep notes, and save a clinical summary after the call.</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Link href="/dashboard/telemedicine/queue" className="rounded-lg border border-border bg-background px-3 py-2 text-sm">Queue</Link>
-          <Link href="/dashboard/telemedicine/profile" className="rounded-lg border border-border bg-background px-3 py-2 text-sm">My Telemedicine Profile</Link>
+    <div className="relative min-h-screen overflow-hidden bg-[#04070f] text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.18),transparent_34%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.16),transparent_28%),linear-gradient(180deg,rgba(3,7,18,0.92),rgba(3,7,18,1))]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_50%)]" />
+
+      <div className="relative mx-auto flex min-h-screen max-w-400 flex-col gap-4 p-4 md:p-6">
+        <header className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-white/5 px-4 py-4 shadow-2xl backdrop-blur md:flex-row md:items-center md:justify-between md:px-6">
+          <div className="space-y-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-sky-200/70">Telemedicine workspace</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">Join a live session and save the encounter summary</h1>
+            <p className="max-w-2xl text-sm text-slate-300">Use LiveKit for video or audio-only consults, keep notes beside the call, and persist the summary when the encounter is complete.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-white/10 bg-slate-950/70 px-3 py-1 text-xs text-slate-200">Mode {roomMode}</span>
+            <Link href="/dashboard/telemedicine/queue" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-slate-950/70 px-4 py-2 text-sm text-white transition hover:bg-slate-900">Queue</Link>
+            <Link href="/dashboard/telemedicine/profile" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-slate-950/70 px-4 py-2 text-sm text-white transition hover:bg-slate-900">Profile</Link>
+          </div>
+        </header>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          <TelemedicineStatCard label="Connection" value={joinRequested ? "Room ready" : "Awaiting token"} tone="accent" />
+          <TelemedicineStatCard label="Queue" value={`${queueSessions.length} sessions`} />
+          <TelemedicineStatCard label="Artifacts" value={`${roomArtifacts.length} saved`} tone="success" />
+        </div>
+
+        {joinRequested && token && serverUrl ? (
+          <div className="fixed inset-0 z-40 overflow-hidden bg-[#04070f]">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.18),transparent_34%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.16),transparent_28%),linear-gradient(180deg,rgba(3,7,18,0.92),rgba(3,7,18,1))]" />
+            <div className="relative flex h-full min-h-screen flex-col">
+              <header className="flex items-center justify-between gap-3 border-b border-white/10 bg-slate-950/80 px-4 py-3 text-white backdrop-blur">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.3em] text-sky-200/70">
+                    <span>Consult</span>
+                    <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] tracking-[0.24em]">{roomMode}</span>
+                  </div>
+                  <h2 className="text-sm font-semibold md:text-base">{selectedPatientName || humanRoomName}</h2>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => setFeaturePanelOpen((value) => !value)} className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white transition hover:bg-white/10">
+                    {featurePanelOpen ? "Hide panel" : "Show panel"}
+                  </button>
+                  <button type="button" onClick={() => { setFeaturePanelOpen(true); setFeatureTab("chat"); }} className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white transition hover:bg-white/10">
+                    Chat
+                  </button>
+                  <button type="button" onClick={() => { setFeaturePanelOpen(true); setFeatureTab("notes"); }} className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white transition hover:bg-white/10">
+                    Notes
+                  </button>
+                  <button type="button" onClick={() => void fetchRoomToken()} className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white transition hover:bg-white/10">
+                    Reconnect
+                  </button>
+                </div>
+              </header>
+
+              <div className="relative flex flex-1 overflow-hidden">
+                <div className="relative flex-1 overflow-hidden">
+                  <LiveKitRoom key={roomInstanceKey} token={token} serverUrl={serverUrl} connect video={effectiveVideoOption} audio={effectiveAudioOption} options={{ adaptiveStream: true, dynacast: true }} className="h-full w-full" data-lk-theme="default">
+                    <CallStage roomMode={roomMode} onVideoRuntimeIssue={setVideoRuntimeIssue} />
+                  </LiveKitRoom>
+
+                  <div className="pointer-events-none absolute bottom-6 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/10 bg-slate-950/80 px-3 py-2 text-white shadow-2xl backdrop-blur">
+                    <button type="button" onClick={() => void fetchRoomToken()} className="pointer-events-auto rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-white transition hover:bg-white/10">
+                      Refresh token
+                    </button>
+                    <button type="button" onClick={() => void saveSessionSummary()} className="pointer-events-auto rounded-full bg-cyan-500 px-4 py-2 text-xs font-semibold text-slate-950 transition hover:bg-cyan-400" disabled={isSavingSummary}>
+                      {isSavingSummary ? "Saving..." : "Save summary"}
+                    </button>
+                    <button type="button" onClick={() => { setJoinRequested(false); setToken(""); setServerUrl(""); setRoomMountVersion((value) => value + 1); }} className="pointer-events-auto rounded-full border border-rose-400/30 bg-rose-500/10 px-4 py-2 text-xs font-medium text-rose-100 transition hover:bg-rose-500/20">
+                      End
+                    </button>
+                  </div>
+
+                  {videoRuntimeIssue ? <p className="absolute left-4 top-20 z-20 max-w-md rounded-2xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">{videoRuntimeIssue}</p> : null}
+                  {roomStatus ? <p className="absolute left-4 top-20 z-20 max-w-md rounded-2xl border border-white/10 bg-slate-950/80 px-3 py-2 text-xs text-slate-200 backdrop-blur">{roomStatus}</p> : null}
+                </div>
+
+                <TelemedicineFeatureModal
+                  open={featurePanelOpen}
+                  activeTab={featureTab}
+                  onTabChange={setFeatureTab}
+                  onClose={() => setFeaturePanelOpen(false)}
+                  patientName={selectedPatientName || "Unknown"}
+                  sessionId={sessionId || roomName}
+                  roomMode={roomMode}
+                  queueCount={queueSessions.length}
+                  artifactCount={roomArtifacts.length}
+                  roomStatus={roomStatus}
+                  videoRuntimeIssue={videoRuntimeIssue}
+                  roomNotes={roomNotes}
+                  onRoomNotesChange={setRoomNotes}
+                  symptomsInput={symptomsInput}
+                  onSymptomsInputChange={setSymptomsInput}
+                  possibleSolutions={possibleSolutions}
+                  onPossibleSolutionsChange={setPossibleSolutions}
+                  draftSummary={aiDraftSummary}
+                  onEditSummary={() => setFeatureTab("notes")}
+                  onAcceptSummary={() => void saveSessionSummary()}
+                  onSaveSummary={() => void saveSessionSummary()}
+                  onEndRoom={() => { setJoinRequested(false); setToken(""); setServerUrl(""); setRoomMountVersion((value) => value + 1); }}
+                  messages={messages}
+                  chatInput={chatInput}
+                  onChatInputChange={setChatInput}
+                  onRefreshChat={() => { if (!chatChannel) return; void loadMessages(chatChannel).catch(() => undefined); }}
+                  onSendChatMessage={() => void sendChatMessage()}
+                  isSendingMessage={isSendingMessage}
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="grid flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
+            <section className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl backdrop-blur">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Telemedicine mode</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-white">Prepare a clinician room</h2>
+                </div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => {
+                    setRoomMode("video");
+                    if (joinRequested) setRoomMountVersion((value) => value + 1);
+                  }} className={`rounded-full px-4 py-2 text-sm font-medium ${roomMode === "video" ? "bg-sky-500 text-slate-950" : "border border-white/10 bg-slate-950/70 text-white"}`}>
+                    Video
+                  </button>
+                  <button type="button" onClick={() => {
+                    setRoomMode("audio");
+                    if (joinRequested) setRoomMountVersion((value) => value + 1);
+                  }} className={`rounded-full px-4 py-2 text-sm font-medium ${roomMode === "audio" ? "bg-sky-500 text-slate-950" : "border border-white/10 bg-slate-950/70 text-white"}`}>
+                    Audio
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+                <div className="space-y-4 rounded-3xl border border-white/10 bg-slate-950/60 p-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Session ID</label>
+                      <input value={sessionId} onChange={(event) => setSessionId(event.target.value)} placeholder="Paste a telemedicine session id" className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Display name</label>
+                      <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Clinician" className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Room name</label>
+                      <input value={roomName || "Auto-generated from session id"} title="Auto-generated from session id" placeholder="Auto-generated from session id" readOnly className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-slate-300 outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Mode</label>
+                      <p className="mt-2 rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-slate-300">{roomMode}</p>
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-slate-300">LiveKit server URL is provided automatically during token generation.</div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <button type="button" onClick={() => void fetchRoomToken()} className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-500 px-4 py-3 text-sm font-semibold text-slate-950 disabled:opacity-60" disabled={isFetchingToken}>
+                      <Video className="h-4 w-4" />
+                      {isFetchingToken ? "Joining..." : "Join room"}
+                    </button>
+                    <button type="button" onClick={() => void loadData()} className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white">
+                      <RefreshCw className="h-4 w-4" />
+                      Refresh data
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-4 rounded-3xl border border-white/10 bg-slate-950/60 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Queue preview</p>
+                  <div className="space-y-2">
+                    {queueSessions.slice(0, 4).map((queueItem, index) => {
+                      const patient = patientLookup.get(queueItem.patient_id);
+                      return (
+                        <TelemedicineQueuePreviewCard
+                          key={queueItem.id}
+                          index={index}
+                          patientName={patient?.full_name || ""}
+                          patientId={queueItem.patient_id}
+                          mode={queueItem.preferred_mode || "video"}
+                        />
+                      );
+                    })}
+                    {queueSessions.length === 0 ? <p className="text-sm text-slate-400">No telemedicine queue items yet.</p> : null}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <aside className="space-y-4">
+              <section className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-lg backdrop-blur">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Practitioners</p>
+                <div className="mt-3 space-y-2 text-sm text-slate-300">
+                  {filteredPractitioners.slice(0, 5).map((practitioner) => (
+                    <TelemedicinePractitionerCard
+                      key={practitioner.id}
+                      fullName={practitioner.full_name}
+                      specialty={practitioner.specialty}
+                      role={practitioner.role}
+                      active={practitioner.active}
+                      email={practitioner.email}
+                    />
+                  ))}
+                  {filteredPractitioners.length === 0 ? <p className="text-sm text-slate-400">No practitioners available for this mode.</p> : null}
+                </div>
+              </section>
+
+              <section className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-lg backdrop-blur">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Artifacts</p>
+                <div className="mt-3 space-y-2 text-sm text-slate-300">
+                  {artifacts.slice(0, 3).map((artifact) => (
+                    <TelemedicineArtifactCard
+                      key={artifact.id}
+                      sessionId={artifact.session_id}
+                      patientId={artifact.patient_id}
+                      summary={artifact.summary}
+                      diagnosis={artifact.final_diagnosis}
+                      followUpNeeded={artifact.follow_up_needed}
+                    />
+                  ))}
+                  {artifacts.length === 0 ? <p className="text-sm text-slate-400">No session artifacts yet.</p> : null}
+                </div>
+              </section>
+            </aside>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="relative mx-auto max-w-screen-2xl space-y-6 overflow-hidden p-4 md:p-6">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.14),transparent_40%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.14),transparent_36%)]" />
+
+      <div className="relative rounded-3xl border border-border/70 bg-card/95 p-5 shadow-soft backdrop-blur md:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Telemedicine workspace</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">Join a live session and save the encounter summary</h1>
+            <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">Use LiveKit for video or audio-only consults, keep notes beside the call, and persist the summary when the encounter is complete.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/dashboard/telemedicine/queue" className="rounded-2xl border border-border bg-background px-4 py-2.5 text-sm font-medium transition hover:bg-muted/40">Queue</Link>
+            <Link href="/dashboard/telemedicine/profile" className="rounded-2xl border border-border bg-background px-4 py-2.5 text-sm font-medium transition hover:bg-muted/40">My Telemedicine Profile</Link>
+          </div>
         </div>
       </div>
 
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-soft">
-        <div className="flex items-start justify-between gap-4">
+      <section className="rounded-3xl border border-border/70 bg-card/95 p-5 shadow-soft backdrop-blur">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h2 className="font-semibold">Telemedicine mode</h2>
-            <p className="text-sm text-muted-foreground">Use LiveKit for video or audio-only consults and save the summary once the encounter is complete.</p>
+            <h2 className="text-lg font-semibold tracking-tight">Telemedicine mode</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Use LiveKit for video or audio-only consults and save the summary once the encounter is complete.</p>
           </div>
           <div className="flex gap-2">
             <button
@@ -848,7 +1137,7 @@ export default function TelemedicinePage() {
                 setRoomMode("video");
                 if (joinRequested) setRoomMountVersion((value) => value + 1);
               }}
-              className={"rounded-lg px-3 py-2 text-sm " + (roomMode === "video" ? "bg-primary text-primary-foreground" : "border border-border bg-background")}
+              className={"rounded-2xl px-4 py-2 text-sm font-medium transition " + (roomMode === "video" ? "bg-primary text-primary-foreground" : "border border-border bg-background hover:bg-muted/40")}
             >
               Video
             </button>
@@ -858,7 +1147,7 @@ export default function TelemedicinePage() {
                 setRoomMode("audio");
                 if (joinRequested) setRoomMountVersion((value) => value + 1);
               }}
-              className={"rounded-lg px-3 py-2 text-sm " + (roomMode === "audio" ? "bg-primary text-primary-foreground" : "border border-border bg-background")}
+              className={"rounded-2xl px-4 py-2 text-sm font-medium transition " + (roomMode === "audio" ? "bg-primary text-primary-foreground" : "border border-border bg-background hover:bg-muted/40")}
             >
               Audio
             </button>
@@ -866,38 +1155,38 @@ export default function TelemedicinePage() {
         </div>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[360px_1fr]">
-          <div className="space-y-4 rounded-2xl border border-border bg-background p-4">
+          <div className="space-y-4 rounded-3xl border border-border/70 bg-background/85 p-4 shadow-sm backdrop-blur">
             <div className="space-y-2">
               <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Session ID</label>
-              <input className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={sessionId} onChange={(event) => { const value = event.target.value; setSessionId(value); setRoomName(value ? `telemedicine-${value}` : ""); }} placeholder="Paste a telemedicine session id" />
+              <input className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-primary/40" value={sessionId} onChange={(event) => { const value = event.target.value; setSessionId(value); setRoomName(value ? `telemedicine-${value}` : ""); }} placeholder="Paste a telemedicine session id" />
             </div>
             <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-2"><label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Display name</label><input className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Clinician" /></div>
-              <div className="space-y-2"><label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Room name</label><input className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm" value={roomName || "Auto-generated from session id"} title="Auto-generated room name" placeholder="Auto-generated from session id" readOnly /></div>
+              <div className="space-y-2"><label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Display name</label><input className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-primary/40" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Clinician" /></div>
+              <div className="space-y-2"><label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Room name</label><input className="w-full rounded-2xl border border-border bg-muted px-3 py-2 text-sm" value={roomName || "Auto-generated from session id"} title="Auto-generated room name" placeholder="Auto-generated from session id" readOnly /></div>
             </div>
-            <p className="rounded-lg border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">LiveKit server URL is provided automatically during token generation.</p>
-            <div className="rounded-xl border border-sky-300/40 bg-sky-50/70 p-3 text-xs text-slate-800">
+            <p className="rounded-2xl border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">LiveKit server URL is provided automatically during token generation.</p>
+            <div className="rounded-2xl border border-sky-300/40 bg-sky-50/70 p-3 text-xs text-slate-800">
               <p className="font-semibold">Session Connection Card</p>
               <div className="mt-2 grid gap-2 md:grid-cols-2">
-                <p className="rounded-lg border border-sky-200 bg-white px-2 py-1">Human room: {humanRoomName}</p>
-                <p className="rounded-lg border border-sky-200 bg-white px-2 py-1">Session ID: {sessionId || "Not selected"}</p>
-                <p className="rounded-lg border border-sky-200 bg-white px-2 py-1">LiveKit room: {roomName || resolvedRoomName || "Not generated yet"}</p>
-                <p className="truncate rounded-lg border border-sky-200 bg-white px-2 py-1">Token: {token ? `${token.slice(0, 48)}...` : "Not generated yet"}</p>
+                <p className="rounded-2xl border border-sky-200 bg-white px-2 py-1">Human room: {humanRoomName}</p>
+                <p className="rounded-2xl border border-sky-200 bg-white px-2 py-1">Session ID: {sessionId || "Not selected"}</p>
+                <p className="rounded-2xl border border-sky-200 bg-white px-2 py-1">LiveKit room: {roomName || resolvedRoomName || "Not generated yet"}</p>
+                <p className="truncate rounded-2xl border border-sky-200 bg-white px-2 py-1">Token: {token ? `${token.slice(0, 48)}...` : "Not generated yet"}</p>
               </div>
             </div>
             <div className="space-y-2">
               <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Notes for summary</label>
-              <textarea className="min-h-32 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={roomNotes} onChange={(event) => setRoomNotes(event.target.value)} placeholder="Symptoms, findings, plan, and follow-up guidance" />
+              <textarea className="min-h-32 w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-primary/40" value={roomNotes} onChange={(event) => setRoomNotes(event.target.value)} placeholder="Symptoms, findings, plan, and follow-up guidance" />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Symptoms (comma or line separated)</label>
-              <textarea className="min-h-20 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={symptomsInput} onChange={(event) => setSymptomsInput(event.target.value)} placeholder="fever, fatigue, chest pain" />
+              <textarea className="min-h-20 w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-primary/40" value={symptomsInput} onChange={(event) => setSymptomsInput(event.target.value)} placeholder="fever, fatigue, chest pain" />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Possible solutions / plan</label>
-              <textarea className="min-h-20 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={possibleSolutions} onChange={(event) => setPossibleSolutions(event.target.value)} placeholder="Hydration plan, labs, medication adjustments, follow-up window" />
+              <textarea className="min-h-20 w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-primary/40" value={possibleSolutions} onChange={(event) => setPossibleSolutions(event.target.value)} placeholder="Hydration plan, labs, medication adjustments, follow-up window" />
             </div>
-            <div className="rounded-lg border border-border bg-muted/40 p-3">
+            <div className="rounded-2xl border border-border bg-muted/40 p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Speaker-aware AI scribe</p>
                 <div className="flex gap-2">
@@ -921,7 +1210,7 @@ export default function TelemedicinePage() {
                 <input
                   value={speakerLabel}
                   onChange={(event) => setSpeakerLabel(event.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-2 py-1 text-xs"
+                  className="w-full rounded-lg border border-border bg-background px-2 py-1 text-xs outline-none transition focus:border-primary/40"
                   placeholder="Current speaker label"
                 />
                 <button
@@ -937,12 +1226,12 @@ export default function TelemedicinePage() {
                 </button>
               </div>
               <textarea
-                className="min-h-16 w-full rounded-lg border border-border bg-background px-2 py-1 text-xs"
+                className="min-h-16 w-full rounded-lg border border-border bg-background px-2 py-1 text-xs outline-none transition focus:border-primary/40"
                 value={manualTranscript}
                 onChange={(event) => setManualTranscript(event.target.value)}
                 placeholder="Manual transcript line from active speaker"
               />
-              <div className="mt-2 max-h-24 space-y-1 overflow-y-auto rounded-lg border border-border bg-background p-2">
+              <div className="mt-2 max-h-24 space-y-1 overflow-y-auto rounded-2xl border border-border bg-background p-2">
                 {transcriptLines.length === 0 ? <p className="text-xs text-muted-foreground">No transcript lines yet.</p> : null}
                 {transcriptLines.map((line) => (
                   <p key={line.id} className="text-xs">
@@ -955,18 +1244,18 @@ export default function TelemedicinePage() {
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => void fetchRoomToken()} className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60" disabled={isFetchingToken}><Video className="h-4 w-4" /> {isFetchingToken ? "Joining..." : "Join room"}</button>
-              <button type="button" onClick={() => void saveSessionSummary()} className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium disabled:opacity-60" disabled={isSavingSummary}><CalendarClock className="h-4 w-4" /> Save summary</button>
-              <button type="button" onClick={() => safeReconfigureRoom("Room closed.")} className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium"><PhoneOff className="h-4 w-4" /> End room</button>
+              <button type="button" onClick={() => void fetchRoomToken()} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60" disabled={isFetchingToken}><Video className="h-4 w-4" /> {isFetchingToken ? "Joining..." : "Join room"}</button>
+              <button type="button" onClick={() => void saveSessionSummary()} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-background px-3 py-2 text-sm font-medium disabled:opacity-60" disabled={isSavingSummary}><CalendarClock className="h-4 w-4" /> Save summary</button>
+              <button type="button" onClick={() => safeReconfigureRoom("Room closed.")} className="inline-flex items-center gap-2 rounded-2xl border border-border bg-background px-3 py-2 text-sm font-medium"><PhoneOff className="h-4 w-4" /> End room</button>
             </div>
-            {roomStatus ? <p className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">{roomStatus}</p> : null}
+            {roomStatus ? <p className="rounded-2xl border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">{roomStatus}</p> : null}
             {localNetworkRoomUrl ? (
-              <p className="rounded-lg border border-sky-400/30 bg-sky-500/10 px-3 py-2 text-xs text-sky-900">
+              <p className="rounded-2xl border border-sky-400/30 bg-sky-500/10 px-3 py-2 text-xs text-sky-900">
                 Local network room link: <a href={localNetworkRoomUrl} className="underline underline-offset-2">{localNetworkRoomUrl}</a>
               </p>
             ) : null}
             {videoRuntimeIssue ? (
-              <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+              <p className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
                 <AlertTriangle className="mr-1 inline h-3.5 w-3.5" /> {videoRuntimeIssue}
                 {localNetworkRoomUrl ? (
                   <>
@@ -981,8 +1270,8 @@ export default function TelemedicinePage() {
 
           <div className="space-y-4">
             {joinRequested && token && serverUrl ? (
-              <div className="relative overflow-hidden rounded-2xl border border-border bg-background shadow-soft">
-                <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <div className="fixed inset-0 z-50 flex min-h-screen flex-col overflow-hidden bg-background">
+                <div className="flex items-center justify-between border-b border-border bg-card px-4 py-3 shadow-soft">
                   <div>
                     <p className="text-sm font-medium">{roomName || "Telemedicine room"}</p>
                     <p className="text-xs text-muted-foreground">{roomMode === "video" ? "Video call" : "Audio call"} session</p>
@@ -1009,7 +1298,7 @@ export default function TelemedicinePage() {
                   {selectedPatientName ? <span className="rounded-full bg-background px-2 py-1 text-xs">Patient: {selectedPatientName}</span> : null}
                   <span className="rounded-full bg-background px-2 py-1 text-xs">Artifacts: {roomArtifacts.length}</span>
                 </div>
-                <div className="h-[60vh] min-h-88 bg-slate-950 md:h-[68vh]">
+                <div className="min-h-[50vh] flex-1 bg-slate-950 md:min-h-[60vh]">
                   <LiveKitRoom
                     key={roomInstanceKey}
                     token={token}
@@ -1049,20 +1338,20 @@ export default function TelemedicinePage() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+      <section className="rounded-3xl border border-border/70 bg-card/95 p-5 shadow-soft backdrop-blur">
         <h2 className="font-semibold mb-3">Telemedicine Queue</h2>
         <div className="space-y-2">
           {telemedicineQueue.map((queueItem, index) => {
             const patient = patientLookup.get(queueItem.patient_id);
             return (
-              <article key={queueItem.id} className="rounded-lg border border-border bg-background p-3">
+              <article key={queueItem.id} className="rounded-2xl border border-border/70 bg-background p-3 shadow-sm">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-medium">{patient?.full_name || queueItem.patient_id}</p>
                     <p className="text-xs text-muted-foreground">{queueItem.preferred_mode || "video"} • {new Date(queueItem.scheduled_at).toLocaleString()}</p>
                     <p className="text-xs text-muted-foreground">{queueItem.requested_amount ? `${queueItem.requested_amount} ${queueItem.requested_currency || "ETB"}` : "Rate not set"}</p>
                   </div>
-                  <span className="rounded-full bg-primary/10 px-2 py-1 text-[11px] text-primary">#{index + 1}</span>
+                  <span className="rounded-full bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">#{index + 1}</span>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">Reason: {queueItem.notes || "n/a"}</p>
                 <div className="mt-2 flex gap-2">
@@ -1070,7 +1359,7 @@ export default function TelemedicinePage() {
                     type="button"
                     onClick={() => void acceptQueueSession(queueItem)}
                     disabled={queueItem.status !== "pending" || isAcceptingQueueId === queueItem.id}
-                    className="rounded-lg bg-primary px-3 py-1 text-xs font-medium text-primary-foreground disabled:opacity-60"
+                    className="rounded-2xl bg-primary px-3 py-1 text-xs font-medium text-primary-foreground disabled:opacity-60"
                   >
                     {isAcceptingQueueId === queueItem.id ? "Accepting..." : queueItem.status === "pending" ? "Accept + Connect" : "Accepted"}
                   </button>
@@ -1080,7 +1369,7 @@ export default function TelemedicinePage() {
                       setSessionId(queueItem.id);
                       setRoomName(`telemedicine-${queueItem.id}`);
                     }}
-                    className="rounded-lg border border-border px-3 py-1 text-xs"
+                    className="rounded-2xl border border-border px-3 py-1 text-xs transition hover:bg-muted/40"
                   >
                     Open
                   </button>
@@ -1092,13 +1381,13 @@ export default function TelemedicinePage() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+      <section className="rounded-3xl border border-border/70 bg-card/95 p-5 shadow-soft backdrop-blur">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="font-semibold">Session Chat</h2>
           <button
             type="button"
             onClick={() => void loadMessages(chatChannel).catch(() => undefined)}
-            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium"
+            className="inline-flex items-center gap-2 rounded-2xl border border-border bg-background px-3 py-2 text-xs font-medium transition hover:bg-muted/40"
             disabled={!chatChannel}
           >
             <RefreshCw className="h-4 w-4" /> Refresh
@@ -1109,9 +1398,9 @@ export default function TelemedicinePage() {
           <p className="text-sm text-muted-foreground">Enter a session id to open chat for that telemedicine session.</p>
         ) : (
           <div className="space-y-3">
-            <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-border bg-background p-3">
+            <div className="max-h-64 space-y-2 overflow-y-auto rounded-2xl border border-border bg-background p-3">
               {messages.map((message) => (
-                <article key={message.id} className="rounded-lg border border-border bg-card px-3 py-2">
+                <article key={message.id} className="rounded-2xl border border-border bg-card px-3 py-2 shadow-sm">
                   <p className="text-xs text-muted-foreground">{message.sender || "Practitioner"} {message.created_at ? `• ${new Date(message.created_at).toLocaleString()}` : ""}</p>
                   <p className="text-sm">{message.content}</p>
                 </article>
@@ -1123,13 +1412,13 @@ export default function TelemedicinePage() {
                 value={chatInput}
                 onChange={(event) => setChatInput(event.target.value)}
                 placeholder="Type a message for patient and team"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-primary/40"
               />
               <button
                 type="button"
                 onClick={() => void sendChatMessage()}
                 disabled={isSendingMessage || !chatInput.trim()}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-2xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
               >
                 <MessageSquare className="h-4 w-4" /> {isSendingMessage ? "Sending..." : "Send"}
               </button>
@@ -1138,7 +1427,7 @@ export default function TelemedicinePage() {
         )}
       </section>
 
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+      <section className="rounded-3xl border border-border/70 bg-card/95 p-5 shadow-soft backdrop-blur">
         <h2 className="font-semibold mb-3">Practitioner roster</h2>
         {selectedQueueSession ? (
           <p className="mb-3 text-xs text-muted-foreground">Showing telemedicine-capable practitioners for mode: {selectedQueueSession.preferred_mode || "video"}</p>
@@ -1146,7 +1435,7 @@ export default function TelemedicinePage() {
         {loading ? <p className="text-sm text-muted-foreground">Loading...</p> : null}
         <div className="space-y-2">
           {filteredPractitioners.map((practitioner) => (
-            <article key={practitioner.id} className="rounded-lg border border-border bg-background p-3">
+            <article key={practitioner.id} className="rounded-2xl border border-border bg-background p-3 shadow-sm">
               <p className="font-medium">{practitioner.full_name}</p>
               <p className="text-xs text-muted-foreground">{practitioner.email || "no-email"} • {practitioner.specialty || "General"} • {practitioner.role}</p>
               <p className={"text-xs mt-1 " + (practitioner.active ? "text-success" : "text-muted-foreground")}>{practitioner.active ? "Active" : "Inactive"}</p>
@@ -1156,12 +1445,12 @@ export default function TelemedicinePage() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+      <section className="rounded-3xl border border-border/70 bg-card/95 p-5 shadow-soft backdrop-blur">
         <h2 className="font-semibold mb-3">Telemedicine Artifacts</h2>
         {loadingError ? <p className="mb-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{loadingError}</p> : null}
         <div className="space-y-2">
           {artifacts.map((a) => (
-            <article key={a.id} className="rounded-lg border border-border bg-background p-3">
+            <article key={a.id} className="rounded-2xl border border-border bg-background p-3 shadow-sm">
               <p className="text-xs text-muted-foreground">Session: {a.session_id} • Patient: {a.patient_id}</p>
               <p className="text-sm mt-1"><span className="font-medium">Summary:</span> {a.summary || "--"}</p>
               <p className="text-sm mt-1"><span className="font-medium">Final diagnosis:</span> {a.final_diagnosis || "--"}</p>
@@ -1245,7 +1534,7 @@ function ParticipantGridView() {
     : null;
 
   return (
-    <div className="relative h-full w-full p-2">
+    <div className="relative h-full w-full p-0">
       <div className="mb-2 flex items-center gap-2">
         <span className="rounded-full border border-white/10 bg-slate-950/85 px-2 py-1 text-[11px] text-slate-100 backdrop-blur">Participants: {participants.length}</span>
         {activeFocusedId ? (
@@ -1263,7 +1552,7 @@ function ParticipantGridView() {
           Waiting for participant video tracks...
         </div>
       ) : (
-        <div className="flex h-full min-h-64 flex-col gap-2 md:flex-row">
+        <div className="flex h-full min-h-0 flex-col gap-2 md:flex-row">
           {participants.map((participant) => {
             const isFocused = activeFocusedId === participant.id;
             const hasFocused = Boolean(activeFocusedId);
@@ -1274,7 +1563,7 @@ function ParticipantGridView() {
                 : "md:flex-1 md:max-w-[34%]";
 
             return (
-              <section key={participant.id} className={`flex min-h-56 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-900/70 ${cardClass}`}>
+              <section key={participant.id} className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-900/70 ${cardClass}`}>
                 <header className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2 text-xs text-slate-100">
                   <span className="truncate">{participant.name}</span>
                   <button
@@ -1285,7 +1574,7 @@ function ParticipantGridView() {
                     {isFocused ? "Normal" : "Focus"}
                   </button>
                 </header>
-                <div className="h-full w-full p-1">
+                <div className="h-full w-full p-0.5">
                   <ParticipantTile trackRef={participant.trackRef as never} />
                 </div>
               </section>
@@ -1313,7 +1602,7 @@ function CallStage({
         <span className="rounded-full bg-white/10 px-2 py-0.5 uppercase tracking-[0.2em] text-slate-200">{connectionState}</span>
         <span className="rounded-full bg-white/5 px-2 py-0.5 text-slate-300">{roomMode === "video" ? "Video" : "Audio"}</span>
       </div>
-      <div className="relative flex h-full flex-1 items-stretch justify-stretch">
+      <div className="relative flex h-full min-h-0 flex-1 items-stretch justify-stretch">
         {roomMode === "audio" ? (
           <div className="flex h-full w-full items-center justify-center px-6 text-center text-sm text-slate-200">
             Audio mode is active. Voice is connected and camera video is disabled.

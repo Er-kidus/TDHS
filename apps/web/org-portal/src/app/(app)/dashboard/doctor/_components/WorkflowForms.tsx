@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Activity, CalendarPlus2, ClipboardList, FilePlus2, FlaskConical, Stethoscope } from "lucide-react";
+import LabOrderModal from "./LabOrderModal";
 import type { ActionPanel, Appointment } from "./types";
 
 export function WorkflowForms({
@@ -22,9 +23,10 @@ export function WorkflowForms({
   onSubmitAction: (payload: Record<string, unknown>, successMessage: string) => Promise<void>;
 }) {
   const [activePanel, setActivePanel] = useState<ActionPanel>("consult");
-  const [labForm, setLabForm] = useState({ testName: "", indication: "", priority: "routine" as "routine" | "urgent" | "asap" });
+  const [labForm, setLabForm] = useState({ testName: "", indication: "", priority: "routine" as "routine" | "urgent" | "asap", serviceArea: "lab" as "lab" | "imaging" });
   const [prescriptionForm, setPrescriptionForm] = useState({ medication: "", dosage: "", frequency: "", durationDays: "5", instructions: "" });
   const [followUpForm, setFollowUpForm] = useState({ scheduledAt: defaultFollowUpDate, reason: `Follow-up for ${appointment?.reason || "recent consultation"}`, notes: "" });
+  const [showLabModal, setShowLabModal] = useState(false);
   const [completeForm, setCompleteForm] = useState({ summary: "", disposition: "completed" });
 
   if (!appointment) {
@@ -50,7 +52,16 @@ export function WorkflowForms({
     <article className="rounded-lg border border-border bg-card p-5 shadow-soft">
       <div className="flex flex-wrap gap-2">
         <ActionButton active={activePanel === "consult"} disabled={!canStartConsult || isSubmitting} onClick={() => void startConsult()} icon={<Stethoscope className="h-4 w-4" />} label="Start" />
-        <ActionButton active={activePanel === "lab"} disabled={!canOrderDuringConsult} onClick={() => setActivePanel("lab")} icon={<FlaskConical className="h-4 w-4" />} label="Lab" />
+        <ActionButton
+          active={activePanel === "lab"}
+          disabled={!canOrderDuringConsult}
+          onClick={() => {
+            setActivePanel("lab");
+            setShowLabModal(true);
+          }}
+          icon={<FlaskConical className="h-4 w-4" />}
+          label="Lab"
+        />
         <ActionButton active={activePanel === "prescription"} disabled={!canOrderDuringConsult} onClick={() => setActivePanel("prescription")} icon={<FilePlus2 className="h-4 w-4" />} label="Prescription" />
         <ActionButton active={activePanel === "followup"} disabled={!canOrderDuringConsult} onClick={() => setActivePanel("followup")} icon={<CalendarPlus2 className="h-4 w-4" />} label="Follow-up" />
         <ActionButton active={false} disabled={!canOrderDuringConsult || isSubmitting} onClick={() => void routeToOpd()} icon={<Activity className="h-4 w-4" />} label="OPD" />
@@ -61,29 +72,21 @@ export function WorkflowForms({
         {activePanel === "consult" ? <p className="text-sm text-muted-foreground">Start the consultation to mark the visit as active.</p> : null}
 
         {activePanel === "lab" ? (
-          <form
-            onSubmit={async (event) => {
-              event.preventDefault();
-              await onSubmitAction({ action: "send_to_lab", appointmentId: appointment.id, ...labForm }, "Lab order placed.");
-              setLabForm({ testName: "", indication: "", priority: "routine" });
-            }}
-            className="space-y-4"
-          >
-            <div className="grid gap-3 md:grid-cols-2">
-              <Field label="Test name" value={labForm.testName} onChange={(value) => setLabForm((current) => ({ ...current, testName: value }))} placeholder="CBC, FBS, Chest X-Ray" />
-              <label className="space-y-1 text-sm">
-                <span className="font-medium">Priority</span>
-                <select value={labForm.priority} onChange={(event) => setLabForm((current) => ({ ...current, priority: event.target.value as "routine" | "urgent" | "asap" }))} className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm">
-                  <option value="routine">Routine</option>
-                  <option value="urgent">Urgent</option>
-                  <option value="asap">ASAP</option>
-                </select>
-              </label>
-            </div>
-            <TextArea label="Clinical indication" value={labForm.indication} onChange={(value) => setLabForm((current) => ({ ...current, indication: value }))} />
-            <SubmitButton disabled={isSubmitting || !canOrderDuringConsult} label="Place Lab Order" busy={isSubmitting} />
-          </form>
+          <div className="rounded-lg border border-border bg-background p-4">
+            <p className="text-sm text-muted-foreground">Use the Lab modal to create diagnostic orders. The modal opened when you clicked <strong>Lab</strong> will let you pick categories and tests.</p>
+          </div>
         ) : null}
+
+          <LabOrderModal
+            open={showLabModal}
+            onClose={() => setShowLabModal(false)}
+            onSend={async (tests, priority, serviceArea, indication) => {
+              // Send each selected test as an individual lab order (server accepts single testName per request)
+              for (const testName of tests) {
+                await onSubmitAction({ action: "send_to_lab", appointmentId: appointment.id, testName, indication, priority, serviceArea }, "Lab order placed.");
+              }
+            }}
+          />
 
         {activePanel === "prescription" ? (
           <form

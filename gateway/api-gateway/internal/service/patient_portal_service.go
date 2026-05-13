@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/tenadam/api-gateway/config"
@@ -341,11 +342,25 @@ func (s *PatientPortalService) AIRouter(ctx context.Context, patientID, mode, me
 	if message == "" {
 		message = "How can I help you today?"
 	}
+	prompt := fmt.Sprintf(`You are a concise healthcare assistant for a patient portal.
+Mode: %s
+Patient request: %s
+
+Respond in 2-4 short paragraphs.
+Use clear next steps.
+Do not claim diagnosis certainty.
+If the user is describing urgent symptoms, advise seeking immediate care.
+When useful, mention medication, appointments, lab results, telemedicine, or message follow-up.`, mode, message)
+
+	reply := "AI router is active. " + message
+	if geminiText, err := s.callGemini(ctx, prompt); err == nil && strings.TrimSpace(geminiText) != "" {
+		reply = strings.TrimSpace(geminiText)
+	}
 	return map[string]any{
 		"patient_id": patientID,
 		"mode":       mode,
 		"intent":     intent,
-		"reply":      "AI router is active. " + message,
+		"reply":      reply,
 		"skills":     []string{"symptom_checker", "medication_assistant", "diet_assistant", "appointment_scheduler", "health_recommender"},
 	}
 }

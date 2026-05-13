@@ -45,17 +45,35 @@ export type PrescriptionRecord = {
   instructions?: string;
   status: "draft" | "pending_dispense" | "dispensed";
   createdAt: string;
+  updatedAt?: string;
 };
 
 export type LabOrderRecord = {
   id: string;
+  orderId?: string;
   appointmentId: string;
   patientId: string;
+  patientName?: string;
+  patientDob?: string;
+  serviceArea?: "lab" | "imaging";
   testName: string;
   indication: string;
   priority: "routine" | "urgent" | "asap";
-  status: "requested" | "sample_collected" | "completed";
+  status: "pending_collection" | "received_in_lab" | "pending_review" | "finalized" | "critical";
+  verificationStatus?: "unverified" | "verified";
+  sampleLabel?: string;
+  results?: {
+    value: string;
+    notes?: string;
+    enteredAt: string;
+    patientIdReentry: string;
+  };
+  criticalAlert?: boolean;
+  acknowledgedByDoctor?: boolean;
+  acknowledgedAt?: string;
+  confirmedAt?: string;
   createdAt: string;
+  updatedAt?: string;
 };
 
 export type FollowUpRecord = {

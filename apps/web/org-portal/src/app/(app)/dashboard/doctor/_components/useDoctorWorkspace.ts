@@ -45,28 +45,30 @@ export function useDoctorWorkspace() {
       if (docsRes.ok) setDoctors(Array.isArray(docsData) ? (docsData as Doctor[]) : []);
       else {
         setDoctors([]);
-        errors.push(getErrorMessage(docsData, "Unable to load doctors"));
+        errors.push(`[${docsRes.status}] Doctors: ${getErrorMessage(docsData, "Unable to load doctors")}`);
       }
 
       if (appointmentsRes.ok) setAppointments(Array.isArray(appointmentsData) ? (appointmentsData as Appointment[]) : []);
       else {
         setAppointments([]);
-        errors.push(getErrorMessage(appointmentsData, "Unable to load appointments"));
+        errors.push(`[${appointmentsRes.status}] Appointments: ${getErrorMessage(appointmentsData, "Unable to load appointments")}`);
       }
 
       if (queuesRes.ok) setQueueEntries(Array.isArray(queueData) ? (queueData as QueueEntry[]) : []);
       else {
         setQueueEntries([]);
-        errors.push(getErrorMessage(queueData, "Unable to load queue"));
+        errors.push(`[${queuesRes.status}] Queues: ${getErrorMessage(queueData, "Unable to load queue")}`);
       }
 
       if (patientsRes.ok) setPatients(Array.isArray(patientsData) ? (patientsData as Patient[]) : []);
       else {
         setPatients([]);
-        errors.push(getErrorMessage(patientsData, "Unable to load patients"));
+        errors.push(`[${patientsRes.status}] Patients: ${getErrorMessage(patientsData, "Unable to load patients")}`);
       }
 
-      setLoadingError(errors.join(" | "));
+      if (errors.length > 0) {
+        setLoadingError(`API Connection Issues - ${errors.join(" | ")} - Check that the backend API is running on http://localhost:8000`);
+      }
     } finally {
       setLoading(false);
     }
