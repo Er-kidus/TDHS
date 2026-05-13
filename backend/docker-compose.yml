@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: pharmacy-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=pharmacy
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  pharmacy-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pharmacy-backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/pharmacy?sslmode=disable
+      - JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+      - PORT=8080
+      - ENVIRONMENT=development
+    restart: unless-stopped
+
+volumes:
+  postgres-data:

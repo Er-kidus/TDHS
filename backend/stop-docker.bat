@@ -1,0 +1,3 @@
+@echo off
+echo Stopping Go Pharmacy Backend Docker container...
+docker-compose down

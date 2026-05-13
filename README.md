@@ -1,231 +1,238 @@
-# Tenadam Digital Healthcare System
+# National Pharmacy Management System
 
-TENADAM is an integrated smart healthcare platform that combines hospital management, telemedicine, emergency response, and AI-driven services into a unified system to improve accessibility and efficiency in healthcare delivery.
+A comprehensive, national-level pharmacy management system integrated with EMR (Electronic Medical Records) systems, built with modern web technologies.
 
-## 🏗 Architecture
+## Overview
 
-Tenadam is a **modular, multi-tenant digital health ERP** monorepo built using:
+This system provides a complete solution for pharmacy operations including prescription management, inventory tracking, user management, and EMR integration. It's designed to scale at a national level while maintaining security, compliance, and ease of use.
 
-| Layer | Technology |
-|-------|-----------|
-| Backend Microservices | Go (Golang) |
-| AI Services | Python (FastAPI) |
-| Web Frontend | Next.js 14 (App Router) |
-| Mobile | Capacitor |
-| Database | PostgreSQL |
-| Cache | Redis |
-| Message Bus | Kafka |
-| Deployment | Docker + Kubernetes |
+## Architecture
 
----
+The system follows a microservices architecture with:
 
-## 📁 Repository Structure
+- **Frontend**: Next.js 14 with TypeScript and Tailwind CSS
+- **Backend**: Go with Gin framework and PostgreSQL
+- **Database**: PostgreSQL with Redis for caching
+- **Integration**: FHIR standard for EMR interoperability
+- **Deployment**: Docker containers with docker-compose
 
-```
-tenadam/
-├── apps/
-│   ├── web/              # Next.js frontend (App Router)
-│   ├── mobile/           # Capacitor mobile wrapper
-│   └── ussd/             # USSD application (Go)
-├── gateway/
-│   └── api-gateway/      # API Gateway (Go)
-├── services/
-│   ├── core/             # auth, user, access-control, session, audit, consent, config
-│   ├── registry/         # patient, practitioner, facility, organization, household, identifier
-│   ├── clinical/         # encounter, clinical-data, procedure, careplan, note, document
-│   ├── clinical-extensions/ # form, order, guideline, program, terminology
-│   ├── diagnostics/      # lab, specimen, result, imaging, radiology
-│   ├── pharmacy/         # medication, prescription, dispensing, inventory
-│   ├── hospital/         # inpatient, ward, bed, nursing, shift-handoff
-│   ├── emergency/        # emergency, triage, ICU, ambulance
-│   ├── surgery/          # surgery, theatre, post-operative
-│   ├── operations/       # appointment, scheduling, queue, referral
-│   ├── financial/        # billing, invoicing, claims, payment, insurance
-│   ├── supply-chain/     # inventory, procurement, vendor, warehouse
-│   ├── ai/               # triage AI, diagnosis support, NLP, risk prediction (Python)
-│   ├── telemedicine/     # video, chat, remote monitoring
-│   ├── communication/    # notification, messaging, USSD, voice-TTS
-│   ├── integration/      # FHIR, interoperability, event-bus
-│   ├── analytics/        # reporting, dashboards, data quality
-│   └── public-health/    # surveillance, outbreak detection, national reporting
-├── packages/             # Shared Go packages
-│   ├── types/
-│   ├── utils/
-│   ├── logger/
-│   ├── config/
-│   ├── auth-client/
-│   ├── db/
-│   └── events/
-├── database/
-│   ├── migrations/
-│   ├── seeds/
-│   └── schemas/
-├── infrastructure/
-│   ├── docker/
-│   ├── k8s/
-│   ├── terraform/
-│   └── scripts/
-└── tools/
-    ├── cli/
-    └── codegen/
-```
+## Key Features
 
----
+### Core Functionality
+- **Multi-role User System**: Admin, Pharmacist, Technician, Doctor, Patient roles
+- **Prescription Management**: Electronic prescribing, filling, and tracking
+- **Inventory Management**: Real-time stock tracking, low-stock alerts, expiry management
+- **Pharmacy Management**: Multiple pharmacy support with centralized administration
+- **Medication Database**: Comprehensive medication information with NDC codes
+- **EMR Integration**: FHIR-compliant integration with external EMR systems
 
-## 🚀 Getting Started
+### Security & Compliance
+- **Authentication**: JWT-based authentication with role-based access control
+- **HIPAA Compliance**: Secure handling of patient health information
+- **Audit Logging**: Complete audit trail for all operations
+- **Data Encryption**: Encrypted data at rest and in transit
+
+### Technical Features
+- **Scalable Architecture**: Microservices design for horizontal scaling
+- **Real-time Updates**: WebSocket support for live updates
+- **API-first Design**: RESTful APIs with comprehensive documentation
+- **Responsive UI**: Mobile-friendly interface with modern UX patterns
+
+## Quick Start
 
 ### Prerequisites
+- Docker and Docker Compose
+- Node.js 18+ (for local development)
+- Go 1.21+ (for local development)
+- PostgreSQL 15+ (if not using Docker)
 
-- Go 1.22+
-- Node.js 20+
-- Docker + Docker Compose
-- kubectl (for Kubernetes deployments)
+### Using Docker (Recommended)
+
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd Pharmacy
+   ```
+
+2. Start all services:
+   ```bash
+   docker-compose up -d
+   ```
+
+3. Access the application:
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:8080
+   - Database: localhost:5432
 
 ### Local Development
 
+#### Backend Setup
 ```bash
-# 1. Copy environment variables
-cp .env.example .env
-
-# 2. Start infrastructure (PostgreSQL, Redis, Kafka)
-make dev
-
-# 3. Run database migrations
-make migrate
-
-# 4. Start the web frontend
-cd apps/web && npm install && npm run dev
-
-# 5. Start individual services
-cd services/core/auth-service && go run ./cmd/main.go
+cd backend
+go mod download
+go run main.go
 ```
 
-### Build All
-
+#### Frontend Setup
 ```bash
-make build-all
+cd frontend
+npm install
+npm run dev
 ```
 
-### Run Tests
-
+#### Database Setup
 ```bash
-make test-go
-make test-web
+# Create database
+createdb pharmacy_db
+
+# Run migrations
+migrate -path migrations -database "postgres://user:password@localhost/pharmacy_db?sslmode=disable" up
 ```
 
-### Telemedicine Remote Fix (LiveKit Cloud)
+## API Documentation
 
-For remote/ngrok sessions, the quickest stable setup is to use LiveKit Cloud for media transport.
+### Authentication Endpoints
+- `POST /api/v1/auth/login` - User login
+- `POST /api/v1/auth/register` - User registration
+- `POST /api/v1/auth/refresh` - Token refresh
 
-1. Configure `.env`:
+### User Management
+- `GET /api/v1/users` - List users (admin only)
+- `GET /api/v1/users/{id}` - Get user details
+- `PUT /api/v1/users/{id}` - Update user
+- `DELETE /api/v1/users/{id}` - Delete user
 
+### Pharmacy Management
+- `GET /api/v1/pharmacies` - List pharmacies
+- `POST /api/v1/pharmacies` - Create pharmacy
+- `PUT /api/v1/pharmacies/{id}` - Update pharmacy
+- `DELETE /api/v1/pharmacies/{id}` - Delete pharmacy
+
+### Prescription Management
+- `GET /api/v1/prescriptions` - List prescriptions
+- `POST /api/v1/prescriptions` - Create prescription
+- `PUT /api/v1/prescriptions/{id}/fill` - Fill prescription
+- `GET /api/v1/prescriptions/patient/{id}` - Get patient prescriptions
+
+### Inventory Management
+- `GET /api/v1/inventory` - List inventory items
+- `POST /api/v1/inventory` - Add inventory item
+- `PUT /api/v1/inventory/{id}` - Update inventory
+- `GET /api/v1/inventory/low-stock` - Get low stock items
+- `POST /api/v1/inventory/restock` - Restock item
+
+## Database Schema
+
+The system uses the following main tables:
+
+- `users` - User accounts and authentication
+- `pharmacies` - Pharmacy information
+- `medications` - Medication catalog
+- `prescriptions` - Prescription records
+- `prescription_items` - Individual prescription items
+- `inventory` - Pharmacy inventory
+- `emr_systems` - EMR system configurations
+- `emr_integration_logs` - Integration audit logs
+
+## Configuration
+
+### Environment Variables
+
+#### Backend
 ```bash
-LIVEKIT_API_KEY=<your_livekit_api_key>
-LIVEKIT_API_SECRET=<your_livekit_api_secret>
-LIVEKIT_PUBLIC_URL=wss://<your-project>.livekit.cloud
+DATABASE_URL=postgres://user:password@localhost:5432/pharmacy_db?sslmode=disable
+JWT_SECRET=your-secret-key
+REDIS_URL=redis://localhost:6379
+PORT=8080
+ENVIRONMENT=development
 ```
 
-1. Restart gateway and portals:
-
+#### Frontend
 ```bash
-docker compose up -d api-gateway
+NEXT_PUBLIC_API_URL=http://localhost:8080/api/v1
+NODE_ENV=development
 ```
 
-1. Validate gateway env was applied:
+## Security Considerations
 
-```bash
-$cid=$(docker compose ps -q api-gateway)
-docker inspect $cid --format '{{range .Config.Env}}{{println .}}{{end}}' | grep '^LIVEKIT_PUBLIC_URL='
+1. **Change Default Credentials**: Always change default passwords and JWT secrets
+2. **Use HTTPS**: Enable SSL/TLS in production
+3. **Database Security**: Use strong database passwords and restrict access
+4. **Regular Updates**: Keep dependencies updated for security patches
+5. **Audit Logs**: Monitor audit logs for suspicious activities
+
+## EMR Integration
+
+The system supports FHIR (Fast Healthcare Interoperability Resources) standard for EMR integration:
+
+- **FHIR Resources**: Patient, Medication, MedicationRequest, Observation
+- **Authentication**: OAuth 2.0 for secure API access
+- **Data Mapping**: Automatic mapping between internal and FHIR formats
+- **Error Handling**: Comprehensive error handling and retry logic
+
+## Development Guidelines
+
+### Code Structure
+```
+Pharmacy/
+|-- backend/
+|   |-- internal/
+|   |   |-- api/          # API handlers and routes
+|   |   |-- models/       # Data models
+|   |   |-- services/     # Business logic
+|   |   |-- config/       # Configuration
+|   |   |-- database/     # Database setup
+|   |   |-- utils/        # Utilities
+|   |-- migrations/       # Database migrations
+|   |-- main.go          # Entry point
+|-- frontend/
+|   |-- src/
+|   |   |-- app/         # Next.js pages
+|   |   |-- components/   # React components
+|   |   |-- lib/         # Utilities and API client
+|   |   |-- types/       # TypeScript types
+|   |   |-- hooks/       # Custom hooks
+|-- docker-compose.yml    # Docker configuration
 ```
 
-Expected: your `wss://<your-project>.livekit.cloud` URL.
+### Contributing
+1. Follow the existing code style
+2. Write tests for new features
+3. Update documentation
+4. Ensure all tests pass before submitting
 
-1. Validate token payload returns cloud URL:
+## Deployment
 
-- From patient or org portal, open a telemedicine room and request a token.
-- In browser DevTools network tab, inspect `POST /api/telemedicine/livekit/token` (or org equivalent).
-- Confirm response `url`/`serverUrl` is your LiveKit Cloud `wss://` URL.
+### Production Deployment
+1. Set up production database
+2. Configure environment variables
+3. Build and deploy containers
+4. Set up load balancer
+5. Configure monitoring and logging
+6. Set up backup and disaster recovery
 
-1. Validate end-to-end call connectivity:
+### Monitoring
+- Application metrics with Prometheus
+- Log aggregation with ELK stack
+- Error tracking with Sentry
+- Performance monitoring with APM tools
 
-- Join from two remote clients over HTTPS.
-- In DevTools console, confirm no `ConnectionError: could not establish pc connection`.
+## License
 
-Notes:
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-- The warning `AudioContext was not allowed to start` is a browser autoplay policy warning and is resolved by a user gesture (click/tap). It is separate from ICE/PC transport failures.
-- `/livekit` rewrite proxy in patient-portal is now opt-in and only enabled when `LIVEKIT_PROXY_TARGET` is explicitly set.
+## Support
 
----
+For support and questions:
+- Create an issue in the repository
+- Contact the development team
+- Check the documentation
 
-## 🧩 Service Architecture
+## Roadmap
 
-Each Go microservice follows the same internal structure:
-
-```
-service-name/
-├── cmd/main.go           # Entry point
-├── api/routes.go         # HTTP routes
-├── internal/
-│   ├── handler/          # HTTP handlers
-│   ├── service/          # Business logic
-│   ├── repository/       # Data access
-│   ├── model/            # Domain models
-│   ├── dto/              # Request/Response DTOs
-│   ├── middleware/        # HTTP middleware
-│   └── events/           # Event types & publishing
-├── config/               # Service configuration
-├── migrations/           # SQL migrations
-├── Dockerfile
-└── go.mod
-```
-
-Python AI services follow this structure:
-
-```
-ai-service-name/
-├── app/
-│   ├── main.py           # FastAPI entry point
-│   ├── api/routes.py     # API routes
-│   ├── models/           # Pydantic models
-│   ├── services/         # Business logic
-│   └── pipelines/        # ML pipelines
-├── requirements.txt
-└── Dockerfile
-```
-
----
-
-## 🔐 Multi-Tenancy
-
-All services are tenant-aware. Every resource is scoped by `tenant_id`. Authentication is handled by the `auth-service` and validated at the API gateway layer.
-
-## 📡 FHIR Compliance
-
-The `integration/fhir-service` provides FHIR R4 compliant API endpoints. Clinical data can be exported/imported in FHIR format.
-
-## 🤖 AI Services
-
-AI services are Python-based (FastAPI) and include:
-- **ai-triage-service** – Automated patient triage
-- **ai-diagnosis-support-service** – Differential diagnosis suggestions
-- **ai-clinical-decision-support-service** – Clinical guidelines & alerts
-- **ai-risk-prediction-service** – Patient risk stratification
-- **ai-nlp-service** – Clinical text processing
-- **ai-population-health-service** – Population analytics
-- **ai-audit-service** – Automated audit trail analysis
-- **ai-policy-service** – Policy compliance checking
-
-## 📱 Mobile
-
-The mobile app is built with **Capacitor** wrapping the Next.js web app, enabling native Android and iOS deployment from a single codebase.
-
-## 📞 USSD & Voice
-
-Rural and low-connectivity users can access key features via USSD shortcodes and voice-based IVR through `communication/ussd-service` and `communication/voice-tts-service`.
-
----
-
-## 📄 License
-
-See [LICENSE](./LICENSE).
+- [ ] Mobile application
+- [ ] Advanced analytics dashboard
+- [ ] Integration with more EMR systems
+- [ ] AI-powered drug interaction checking
+- [ ] Telepharmacy support
+- [ ] Blockchain for prescription tracking

@@ -1,27 +1,23 @@
-x-go-service: &go-service-defaults
-  build:
-    context: .
-  restart: unless-stopped
-  env_file: .env
+version: '3.8'
 
 services:
-  # ── Infrastructure ──────────────────────────
+  # PostgreSQL Database
   postgres:
-    image: postgres:16-alpine
+    image: postgres:15-alpine
+    container_name: pharmacy-postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-tenadam}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tenadam_dev}
-      POSTGRES_DB: ${POSTGRES_DB:-tenadam}
+      POSTGRES_DB: pharmacy_db
+      POSTGRES_USER: pharmacy_user
+      POSTGRES_PASSWORD: pharmacy_password
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "5432:5432"
     volumes:
-      - pg_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tenadam"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - pharmacy-network
 
+  # PgAdmin
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin_tenadam
@@ -33,148 +29,64 @@ services:
       - "5050:80"
     depends_on:
       - postgres
+    networks:
+      - pharmacy-network
 
+  # Redis Cache
   redis:
     image: redis:7-alpine
+    container_name: pharmacy-redis
     ports:
       - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    volumes:
+      - redis_data:/data
+    networks:
+      - pharmacy-network
 
-  kafka:
-    image: apache/kafka:3.7.0
-    environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://kafka:9092,CONTROLLER://kafka:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-    ports:
-      - "9092:9092"
-
-  livekit:
-    image: livekit/livekit-server:latest
-    command:
-      [
-        "--bind",
-        "0.0.0.0",
-        "--keys",
-        "${LIVEKIT_API_KEY:-devkey}: ${LIVEKIT_API_SECRET:-secret}",
-        "--node-ip",
-        "${LIVEKIT_NODE_IP:-127.0.0.1}",
-        "--rtc.node_ip.ipv4",
-        "${LIVEKIT_NODE_IP:-127.0.0.1}",
-        "--udp-port",
-        "7881",
-        "--rtc.tcp_port",
-        "7881",
-        "--rtc.allow_tcp_fallback"
-      ]
-    ports:
-      - "7880:7880"
-      - "7881:7881/tcp"
-      - "7881:7881/udp"
-
-  # ── Gateway ──────────────────────────────────
-  api-gateway:
+  # Go Backend API
+  backend:
     build:
-      context: gateway/api-gateway
+      context: ./backend
       dockerfile: Dockerfile
+    container_name: pharmacy-backend
+    environment:
+      DATABASE_URL: postgres://pharmacy_user:pharmacy_password@postgres:5432/pharmacy_db?sslmode=disable
+      JWT_SECRET: your-super-secret-jwt-key-change-this-in-production
+      REDIS_URL: redis://redis:6379
+      PORT: 8080
+      ENVIRONMENT: development
     ports:
-      - "8000:8080"
+      - "8080:8080"
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      PORT: ":8080"
-      DATABASE_URL: "postgres://tenadam:tenadam_dev@postgres:5432/tenadam?sslmode=disable"
-      REDIS_URL: "redis://redis:6379"
-      JWT_SECRET: "dev-jwt-secret"
-      LIVEKIT_URL: "${LIVEKIT_URL:-ws://127.0.0.1:7880}"
-      LIVEKIT_PUBLIC_URL: "${LIVEKIT_PUBLIC_URL:-}"
-      LIVEKIT_API_KEY: "${LIVEKIT_API_KEY:-devkey}"
-      LIVEKIT_API_SECRET: "${LIVEKIT_API_SECRET:-secret}"
+      - postgres
+      - redis
+    networks:
+      - pharmacy-network
+    volumes:
+      - ./backend:/app
 
-  # ── Core Services ────────────────────────────
-  auth-service:
+  # Next.js Frontend
+  frontend:
     build:
-      context: services/core/auth-service
+      context: ./frontend
       dockerfile: Dockerfile
-    ports:
-      - "8001:8080"
-    depends_on: [postgres, redis]
+    container_name: pharmacy-frontend
     environment:
-      PORT: ":8080"
-      DATABASE_URL: "postgres://tenadam:tenadam_dev@postgres:5432/tenadam?sslmode=disable"
-
-  user-service:
-    build:
-      context: services/core/user-service
-      dockerfile: Dockerfile
-    ports:
-      - "8002:8080"
-    depends_on: [postgres]
-    environment:
-      PORT: ":8080"
-      DATABASE_URL: "postgres://tenadam:tenadam_dev@postgres:5432/tenadam?sslmode=disable"
-
-  # ── Registry Services ────────────────────────
-  # patient-service: DISABLED - go.mod dependency issue
-  # patient-service:
-  #   build:
-  #     context: services/registry/patient-service
-  #     dockerfile: Dockerfile
-  #   ports:
-  #     - "8010:8080"
-  #   depends_on: [postgres]
-  #   environment:
-  #     PORT: ":8080"
-  #     DATABASE_URL: "postgres://tenadam:tenadam_dev@postgres:5432/tenadam?sslmode=disable"
-
-  # ── Web App ──────────────────────────────────
-  patient-portal:
-    build:
-      context: apps/web/patient-portal
-      dockerfile: Dockerfile
+      NEXT_PUBLIC_API_URL: http://localhost:8080/api/v1
     ports:
       - "3000:3000"
     depends_on:
-      - api-gateway
-    environment:
-      API_BASE_URL: "http://api-gateway:8080"
-
-  org-portal:
-    build:
-      context: apps/web/org-portal
-      dockerfile: Dockerfile
-    ports:
-      - "4000:4000"
-    depends_on:
-      - api-gateway
-    environment:
-      API_BASE_URL: "http://api-gateway:8080"
-
-  front-door:
-    build:
-      context: services/front-door
-      dockerfile: Dockerfile
-    ports:
-      - "8090:8090"
-    depends_on:
-      - api-gateway
-    environment:
-      FRONT_DOOR_PORT: "8090"
-      REGISTRY_BASE_URL: "http://api-gateway:8080"
-      TRIAGE_MODEL_ADMIN_ROLE: "admin"
-      API_BASE_URL: "http://api-gateway:8080"
+      - backend
+    networks:
+      - pharmacy-network
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
 
 volumes:
-  pg_data:
+  postgres_data:
+  redis_data:
+
+networks:
+  pharmacy-network:
+    driver: bridge
