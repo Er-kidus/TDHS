@@ -243,38 +243,7 @@ export function DoctorLabClient() {
       actionError={workspace.actionError}
       actionMessage={workspace.actionMessage}
     >
-      <section className="grid gap-5 xl:grid-cols-[360px_1fr]">
-        {/* SIDEBAR / PATIENT */}
-        <div className="space-y-5">
-          <PatientPanel
-            appointment={workspace.selectedAppointment}
-            patient={workspace.selectedPatient}
-            queueEntry={workspace.selectedQueueEntry}
-          />
-
-          <div className="rounded-3xl border border-border bg-card p-5">
-            <div className="flex items-start gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
-                <ShieldCheck className="h-5 w-5 text-primary" />
-              </div>
-
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Workflow
-                </p>
-
-                <h3 className="mt-1 text-lg font-semibold">
-                  Diagnostic Management
-                </h3>
-
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  Laboratory and radiology requests automatically sync with the
-                  patient portal after submission and verification.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+     
 
         {/* MAIN CONTENT */}
         <div className="space-y-5">
@@ -484,7 +453,7 @@ export function DoctorLabClient() {
             )}
           </div>
         </div>
-      </section>
+
 
       {/* ORDER MODAL */}
       <LabOrderModal

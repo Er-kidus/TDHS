@@ -1,3 +1,5 @@
+import { TranscriptLine } from "./types";
+
 export function isPrivateOrLoopbackHost(
   hostname: string
 ): boolean {
@@ -82,4 +84,50 @@ export function parseSymptoms(
     .split(/[\n,]/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+export function buildTranscript(
+  transcriptLines: TranscriptLine[],
+  fallback: string
+): string {
+  if (transcriptLines.length > 0) {
+    return transcriptLines
+      .map(
+        (line) =>
+          `${new Date(line.createdAt).toLocaleTimeString()} ${line.speaker}: ${line.text}`
+      )
+      .join("\n");
+  }
+
+  return fallback.trim();
+}
+
+export function buildDoctorNotes(
+  roomNotes: string,
+  possibleSolutions: string
+): string {
+  const sections = [
+    roomNotes.trim(),
+    possibleSolutions.trim()
+      ? `Possible solutions:\n${possibleSolutions.trim()}`
+      : "",
+  ].filter(Boolean);
+
+  return sections.join("\n\n");
+}
+
+export function buildAiDraftSummary(
+  roomNotes: string,
+  symptomsInput: string,
+  possibleSolutions: string
+): string {
+  const segments = [
+    roomNotes.trim(),
+    symptomsInput.trim(),
+    possibleSolutions.trim(),
+  ].filter(Boolean);
+
+  return segments.length > 0
+    ? segments.join("\n\n")
+    : "Draft a concise encounter summary, confirm the plan, then save to the chart.";
 }

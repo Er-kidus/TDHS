@@ -182,7 +182,6 @@ export function navigationForRole(role: OrgRole, mode?: OrgNavMode): Array<{ hre
       { href: "/dashboard/telemedicine/profile", label: "My Telemedicine Profile", modes: ["telemedicine"] },
       { href: "/patients", label: "Patients" },
       { href: "/appointments", label: "Appointments" },
-      { href: "/settings", label: "Settings" },
     ], mode);
   }
 

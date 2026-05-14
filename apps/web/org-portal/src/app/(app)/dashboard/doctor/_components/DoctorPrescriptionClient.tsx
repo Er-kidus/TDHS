@@ -46,31 +46,10 @@ export function DoctorPrescriptionClient() {
 
   return (
     <DoctorWorkspaceShell view="prescription" onRefresh={() => void workspace.loadData()} loadingError={workspace.loadingError} actionError={workspace.actionError} actionMessage={workspace.actionMessage}>
-      <section className="grid gap-4 xl:grid-cols-[340px_1fr]">
-        <QueueList
-          appointments={workspace.organizationQueue}
-          patientLookup={workspace.patientLookup}
-          queueLookup={workspace.queueLookup}
-          selectedAppointmentId={workspace.selectedAppointmentId}
-          loading={workspace.loading}
-          onSelect={workspace.setSelectedAppointmentId}
-        />
+
 
         <div className="space-y-4">
-          <PatientPanel appointment={workspace.selectedAppointment} patient={workspace.selectedPatient} queueEntry={workspace.selectedQueueEntry} />
-
-          <article className="rounded-2xl border border-border bg-card p-5 shadow-soft">
-            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Prescription workspace</p>
-                <h2 className="mt-1 text-xl font-semibold tracking-tight">Create or revise a prescription</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Review the patient context, edit the clinical instructions, and save the prescription back to the shared record.</p>
-              </div>
-              <div className="flex items-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-xs font-semibold text-muted-foreground">
-                <ShieldCheck className="h-4 w-4 text-emerald-600" />
-                Editable clinical form
-              </div>
-            </div>
+    
 
             {workspace.selectedPatient ? (
               <div className="mt-4 grid gap-3 rounded-2xl border border-border bg-background p-4 md:grid-cols-4">
@@ -159,14 +138,11 @@ export function DoctorPrescriptionClient() {
                   )}
                 </div>
 
-                <div className="rounded-2xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
-                  The prescription is persisted in PostgreSQL through the doctor workflow API and becomes available to the patient portal after the backend read layer fetches it.
-                </div>
               </aside>
             </div>
-          </article>
+          {/* </article> */}
         </div>
-      </section>
+      {/* </section> */}
     </DoctorWorkspaceShell>
   );
 }

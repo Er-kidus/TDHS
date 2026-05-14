@@ -138,14 +138,14 @@ export default function TelemedicineProfilePage() {
       <header className="rounded-[28px] border border-border bg-card p-6 shadow-soft">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="space-y-3">
-            <p className="text-xs uppercase tracking-[0.3em] text-primary/80">Telemedicine Superapp</p>
-            <h1 className="text-3xl font-semibold tracking-tight">My Telemedicine Profile</h1>
+            {/* <p className="text-xs uppercase tracking-[0.3em] text-primary/80">Telemedicine Superapp</p> */}
+            <h1 className="text-3xl font-semibold tracking-tight">Telemedicine Profile</h1>
             <p className="max-w-2xl text-sm text-muted-foreground">Configure your telemedicine identity, rates, availability, and supported consultation modes in one place.</p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          {/* <div className="flex flex-wrap gap-2">
             <Link href="/dashboard/telemedicine" className="rounded-2xl border border-border bg-background px-4 py-2.5 text-sm hover:bg-muted/40">Workspace</Link>
             <Link href="/dashboard/telemedicine/queue" className="rounded-2xl border border-border bg-background px-4 py-2.5 text-sm hover:bg-muted/40">Queue</Link>
-          </div>
+          </div> */}
         </div>
       </header>
 
@@ -182,7 +182,7 @@ export default function TelemedicineProfilePage() {
               <p className="text-xs text-muted-foreground">Role</p>
               <p className="text-sm font-medium">{profile?.role || "-"}</p>
             </div>
-            <div className="md:col-span-2 rounded-2xl border border-border bg-background p-4">
+            {/* <div className="md:col-span-2 rounded-2xl border border-border bg-background p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Practitioner work mode</p>
@@ -215,7 +215,7 @@ export default function TelemedicineProfilePage() {
                   </div>
                 </div>
               ) : null}
-            </div>
+            </div> */}
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Specialty</label>
               <input value={telemedicineSpecialty} onChange={(event) => setTelemedicineSpecialty(event.target.value)} placeholder="Telemedicine specialty" className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm" />

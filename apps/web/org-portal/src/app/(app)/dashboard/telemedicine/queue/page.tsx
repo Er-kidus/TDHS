@@ -121,7 +121,7 @@ export default function TelemedicineQueuePage() {
     <div className="relative mx-auto max-w-6xl space-y-4 overflow-hidden p-4 md:p-6">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.14),transparent_40%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.14),transparent_36%)]" />
 
-      <header className="relative rounded-3xl border border-border/70 bg-card/95 p-5 shadow-soft backdrop-blur">
+      {/* <header className="relative rounded-3xl border border-border/70 bg-card/95 p-5 shadow-soft backdrop-blur">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Telemedicine queue</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">Review pending requests and move into live consult workspace</h1>
         <p className="mt-2 text-sm text-muted-foreground">Use the queue to accept incoming telemedicine requests and open the workspace in one step.</p>
@@ -130,7 +130,7 @@ export default function TelemedicineQueuePage() {
           <Link href="/dashboard/telemedicine/profile" className="rounded-2xl border border-border bg-background px-4 py-2.5 text-sm font-medium transition hover:bg-muted/40">My Profile</Link>
           <span className="rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground">Live refresh {lastRefreshAt ? lastRefreshAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'pending'}</span>
         </div>
-      </header>
+      </header> */}
 
       {loading ? <p className="text-sm text-muted-foreground">Loading queue...</p> : null}
       {error ? <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}

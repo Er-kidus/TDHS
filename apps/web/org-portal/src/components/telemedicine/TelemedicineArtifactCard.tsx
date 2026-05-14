@@ -20,14 +20,14 @@ export function TelemedicineArtifactCard({
           <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
             Consultation Artifact
           </p>
-
+{/* 
           <p className="mt-2 text-sm text-slate-400">
             Session: {sessionId}
           </p>
 
           <p className="text-sm text-slate-400">
             Patient: {patientId}
-          </p>
+          </p> */}
         </div>
 
         <div
