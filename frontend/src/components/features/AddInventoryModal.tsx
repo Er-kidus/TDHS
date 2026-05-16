@@ -87,17 +87,29 @@ export function AddInventoryModal({ isOpen, onClose, onSuccess, pharmacyId }: Ad
 
     setLoading(true);
     try {
-      const inventoryData = {
+      const inventoryData: any = {
         pharmacy_id: pharmacyId,
         medication_id: formData.medication_id,
         quantity_on_hand: formData.quantity_on_hand,
-        reorder_level: formData.reorder_level,
-        unit_cost: formData.unit_cost || undefined,
-        selling_price: formData.selling_price || undefined,
-        expiry_date: formData.expiry_date || undefined,
-        batch_number: formData.batch_number || undefined,
-        supplier: formData.supplier || undefined
+        reorder_level: formData.reorder_level
       };
+
+      // Only include optional fields if they have values
+      if (formData.unit_cost > 0) {
+        inventoryData.unit_cost = formData.unit_cost;
+      }
+      if (formData.selling_price > 0) {
+        inventoryData.selling_price = formData.selling_price;
+      }
+      if (formData.expiry_date) {
+        inventoryData.expiry_date = formData.expiry_date;
+      }
+      if (formData.batch_number) {
+        inventoryData.batch_number = formData.batch_number;
+      }
+      if (formData.supplier) {
+        inventoryData.supplier = formData.supplier;
+      }
 
       const newItem = await inventoryAPI.createInventoryItem(inventoryData);
       

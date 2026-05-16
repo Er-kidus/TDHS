@@ -58,7 +58,7 @@ export default function PatientsPage() {
   useEffect(() => {
     // Add current page to navigation history
     addToHistory('/patients', 'Patients');
-  }, [addToHistory]);
+  }, []);
 
   useEffect(() => {
     const loadPatients = async () => {

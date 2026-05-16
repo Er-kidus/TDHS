@@ -158,19 +158,21 @@ export function NewPrescriptionModal({ isOpen, onClose, onSuccess, pharmacyId }:
     try {
       const prescriptionData = {
         patient_id: formData.patient_id,
-        patient_name: formData.patient_name,
-        medication_id: formData.medication_id,
-        drug_name: formData.drug_name,
-        dosage: formData.dosage,
-        quantity: formData.quantity,
-        frequency: formData.frequency,
-        duration: formData.duration,
-        prescriber_name: formData.prescriber_name,
-        priority: formData.priority,
-        notes: formData.notes,
+        doctor_id: localStorage.getItem('userId') || '00000000-0000-0000-0000-000000000000',
         pharmacy_id: pharmacyId,
-        status: 'pending',
-        date_prescribed: new Date().toISOString()
+        date_prescribed: new Date().toISOString().split('T')[0],
+        notes: formData.notes || null,
+        items: [
+          {
+            medication_id: formData.medication_id,
+            dosage: formData.dosage || null,
+            frequency: formData.frequency || null,
+            duration: formData.duration || null,
+            quantity: formData.quantity,
+            instructions: formData.notes || null,
+            refills_remaining: 0
+          }
+        ]
       };
 
       const newPrescription = await prescriptionAPI.createPrescription(prescriptionData);

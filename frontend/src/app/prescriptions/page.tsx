@@ -26,7 +26,7 @@ export default function PrescriptionsPage() {
   useEffect(() => {
     // Add current page to navigation history
     addToHistory('/prescriptions', 'Prescriptions');
-  }, [addToHistory]);
+  }, []);
 
   useEffect(() => {
     const loadPrescriptions = async () => {
