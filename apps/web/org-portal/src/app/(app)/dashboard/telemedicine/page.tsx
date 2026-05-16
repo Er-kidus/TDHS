@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Video } from "lucide-react";
+import { PanelRight } from "lucide-react";
+
 import { LiveKitRoom } from "@livekit/components-react";
 import Link from "next/link";
 import {
@@ -25,7 +26,7 @@ import {
   useTranscript,
   useSpeechRecognition,
 } from "./hooks";
-import { CallStage } from "./components";
+import { CallStage, TelemedicineSessionControl } from "./components";
 import { TelemedicineArtifactCard } from "@/components/telemedicine/TelemedicineArtifactCard";
 import { TelemedicineFeatureModal } from "@/components/telemedicine/TelemedicineFeatureModal";
 import { TelemedicineQueuePreviewCard } from "@/components/telemedicine/TelemedicineQueuePreviewCard";
@@ -41,11 +42,28 @@ export default function TelemedicinePage() {
   const { transcriptLines, addTranscriptLine, setTranscriptLines } =
     useTranscript();
 
-  const { stop: stopScribe } =
+  const { isListening: isScribeListening, start: startScribe, stop: stopScribe } =
     useSpeechRecognition(
-      (text) => addTranscriptLine("Clinician", text, "voice"),
-      () => {}
+      (text) => {
+        addTranscriptLine("Clinician", text, "voice");
+        if (sessionId.trim()) {
+           fetch(`/api/org/telemedicine/sessions/${encodeURIComponent(sessionId.trim())}/transcript-lines`, {
+               method: "POST",
+               headers: { "Content-Type": "application/json" },
+               body: JSON.stringify({ speaker: "Clinician", content: text, source: "voice" })
+           }).catch(() => {});
+        }
+      },
+      (err) => setRoomStatus(err)
     );
+
+  // Detect if browser supports speech recognition
+  const speechAvailable = typeof window !== "undefined"
+    ? Boolean(
+        (window as unknown as Record<string, unknown>).SpeechRecognition ||
+        (window as unknown as Record<string, unknown>).webkitSpeechRecognition
+      )
+    : false;
 
   // =============================================
   // STATE VARIABLES (in logical groups)
@@ -61,13 +79,19 @@ export default function TelemedicinePage() {
   const [roomMode, setRoomMode] = useState<"video" | "audio">("video");
   const [roomMountVersion, setRoomMountVersion] = useState(0);
 
-  // Session Content
+  // Session Content — structured notes
   const [roomNotes, setRoomNotes] = useState("");
+  const [chiefComplaint, setChiefComplaint] = useState("");
   const [symptomsInput, setSymptomsInput] = useState("");
+  const [currentMedications, setCurrentMedications] = useState("");
+  const [previousDiseases, setPreviousDiseases] = useState("");
+  const [allergies, setAllergies] = useState("");
+  const [clinicalImpressions, setClinicalImpressions] = useState("");
   const [possibleSolutions, setPossibleSolutions] = useState("");
+  const [followUpRequired, setFollowUpRequired] = useState(false);
 
   // UI State
-  const [featureTab, setFeatureTab] = useState<"ai" | "chart" | "notes" | "chat">("ai");
+  const [featureTab, setFeatureTab] = useState<"ai" | "notes" | "chat">("ai");
   const [featurePanelOpen, setFeaturePanelOpen] = useState(true);
 
   // Status & Loading
@@ -324,6 +348,26 @@ export default function TelemedicinePage() {
   }, [chatChannel]);
 
   useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+    if (sessionId.trim()) {
+      intervalId = setInterval(() => {
+        void loadTranscriptLines(sessionId);
+      }, 5000);
+    }
+    return () => clearInterval(intervalId);
+  }, [sessionId]);
+
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+    if (chatChannel) {
+      intervalId = setInterval(() => {
+        void loadMessages(chatChannel).catch(() => {});
+      }, 5000);
+    }
+    return () => clearInterval(intervalId);
+  }, [chatChannel]);
+
+  useEffect(() => {
     return () => {
       stopScribe();
     };
@@ -464,13 +508,15 @@ export default function TelemedicinePage() {
       return;
     }
 
-    // setIsSavingSummary(true);
     setRoomStatus("");
 
     try {
       const transcript = buildTranscript(transcriptLines, roomNotes);
       const symptoms = parseSymptoms(symptomsInput);
-      const doctorNotes = buildDoctorNotes(roomNotes, possibleSolutions);
+      const doctorNotes = buildDoctorNotes(
+        [roomNotes, chiefComplaint, clinicalImpressions].filter(Boolean).join("\n\n"),
+        possibleSolutions
+      );
 
       const res = await fetch(
         `/api/org/telemedicine/sessions/${encodeURIComponent(
@@ -487,8 +533,8 @@ export default function TelemedicinePage() {
             recording_url: null,
             transcript_url: null,
             doctor_id: null,
-            final_diagnosis: "",
-            create_follow_up: true,
+            final_diagnosis: clinicalImpressions || "",
+            create_follow_up: followUpRequired,
           }),
         }
       );
@@ -508,9 +554,24 @@ export default function TelemedicinePage() {
           ? error.message
           : "Unable to save session summary"
       );
-    } finally {
-      // setIsSavingSummary(false);
     }
+  }
+
+  // End the current session on the backend, then tear down the LiveKit room.
+  async function endSession() {
+    if (sessionId.trim()) {
+      try {
+        await fetch(
+          `/api/org/telemedicine/sessions/${encodeURIComponent(sessionId.trim())}/end`,
+          { method: "PATCH" }
+        );
+      } catch {
+        // Best-effort – don't block the room from closing
+      }
+    }
+    safeReconfigureRoom("Session ended");
+    // Refresh the queue so the completed session disappears
+    void loadData();
   }
 
   // =============================================
@@ -580,12 +641,10 @@ export default function TelemedicinePage() {
                 <h2 className="text-sm font-semibold">{humanRoomName}</h2>
                 <button
                   type="button"
-                  onClick={() =>
-                    safeReconfigureRoom("Session ended")
-                  }
+                  onClick={() => void endSession()}
                   className="rounded-full border border-rose-400/30 bg-rose-500/10 px-3 py-1 text-xs font-medium text-rose-100 hover:bg-rose-500/20"
                 >
-                  End
+                  End session
                 </button>
               </header>
 
@@ -598,6 +657,7 @@ export default function TelemedicinePage() {
                     connect={true}
                     audio={true}
                     video={roomMode === "video"}
+                    className="h-full w-full"
                   >
                     <CallStage
                       roomMode={roomMode}
@@ -606,6 +666,18 @@ export default function TelemedicinePage() {
                   </LiveKitRoom>
                 ) : null}
               </div>
+
+              {/* Floating re-open button (shown when panel is closed) */}
+              {!featurePanelOpen && (
+                <button
+                  type="button"
+                  onClick={() => setFeaturePanelOpen(true)}
+                  className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/95 px-4 py-3 text-sm font-semibold text-white shadow-2xl backdrop-blur transition hover:bg-slate-800"
+                >
+                  <PanelRight className="h-4 w-4 text-cyan-400" />
+                  Open Consult Panel
+                </button>
+              )}
 
               <TelemedicineFeatureModal
                 open={featurePanelOpen}
@@ -621,168 +693,63 @@ export default function TelemedicinePage() {
                 videoRuntimeIssue={videoRuntimeIssue}
                 roomNotes={roomNotes}
                 onRoomNotesChange={setRoomNotes}
+                chiefComplaint={chiefComplaint}
+                onChiefComplaintChange={setChiefComplaint}
                 symptomsInput={symptomsInput}
                 onSymptomsInputChange={setSymptomsInput}
+                currentMedications={currentMedications}
+                onCurrentMedicationsChange={setCurrentMedications}
+                previousDiseases={previousDiseases}
+                onPreviousDiseasesChange={setPreviousDiseases}
+                allergies={allergies}
+                onAllergiesChange={setAllergies}
+                clinicalImpressions={clinicalImpressions}
+                onClinicalImpressionsChange={setClinicalImpressions}
                 possibleSolutions={possibleSolutions}
                 onPossibleSolutionsChange={setPossibleSolutions}
+                followUpRequired={followUpRequired}
+                onFollowUpRequiredChange={setFollowUpRequired}
                 draftSummary={aiDraftSummary}
                 onEditSummary={() => setFeatureTab("notes")}
                 onAcceptSummary={() => void saveSessionSummary()}
                 onSaveSummary={() => void saveSessionSummary()}
-                onEndRoom={() => safeReconfigureRoom("Session ended")}
+                onEndRoom={() => void endSession()}
                 messages={messages}
                 chatInput={chatInput}
                 onChatInputChange={setChatInput}
                 onRefreshChat={() => void loadMessages(chatChannel)}
                 onSendChatMessage={() => void sendChatMessage()}
                 isSendingMessage={isSendingMessage}
+                speechAvailable={speechAvailable}
+                isListening={isScribeListening}
+                onStartScribe={startScribe}
+                onStopScribe={stopScribe}
               />
             </div>
           </div>
         ) : (
           <div className="grid flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
-            <section className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl backdrop-blur">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold text-white">
-                    Join Session
-                  </h2>
-                  <p className="text-sm text-slate-300">
-                    Enter session ID to start
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setRoomMode("video")}
-                    className={`rounded-2xl px-4 py-2 text-sm font-medium transition ${
-                      roomMode === "video"
-                        ? "bg-cyan-500 text-slate-950"
-                        : "border border-white/10 bg-white/5 text-white hover:bg-white/10"
-                    }`}
-                  >
-                    <Video className="mr-2 inline h-4 w-4" />
-                    Video
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRoomMode("audio")}
-                    className={`rounded-2xl px-4 py-2 text-sm font-medium transition ${
-                      roomMode === "audio"
-                        ? "bg-cyan-500 text-slate-950"
-                        : "border border-white/10 bg-white/5 text-white hover:bg-white/10"
-                    }`}
-                  >
-                    Audio
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-medium uppercase tracking-wide text-slate-300">
-                    Session ID
-                  </label>
-                  <input
-                    className="w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/40"
-                    value={sessionId}
-                    onChange={(e) => {
-                      setSessionId(e.target.value);
-                      setRoomName(
-                        e.target.value
-                          ? `telemedicine-${e.target.value}`
-                          : ""
-                      );
-                    }}
-                    placeholder="Paste session ID"
-                  />
-                </div>
-
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium uppercase tracking-wide text-slate-300">
-                      Your name
-                    </label>
-                    <input
-                      className="w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/40"
-                      value={displayName}
-                      onChange={(e) =>
-                        setDisplayName(e.target.value)
-                      }
-                      placeholder="Clinician"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium uppercase tracking-wide text-slate-300">
-                      Room
-                    </label>
-                    <input
-                      className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-400"
-                      value={roomName || "Auto-generated"}
-                      placeholder="Auto-generated room name"
-                      readOnly
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => void fetchRoomToken()}
-                  disabled={isFetchingToken || !sessionId}
-                  className="w-full rounded-2xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-60"
-                >
-                  {isFetchingToken ? "Connecting..." : "Join Room"}
-                </button>
-
-                {roomStatus && (
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-300">
-                    {roomStatus}
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <label className="text-xs font-medium uppercase tracking-wide text-slate-300">
-                    Notes
-                  </label>
-                  <textarea
-                    className="w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/40 resize-none min-h-24"
-                    value={roomNotes}
-                    onChange={(e) =>
-                      setRoomNotes(e.target.value)
-                    }
-                    placeholder="Session notes..."
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-medium uppercase tracking-wide text-slate-300">
-                    Symptoms
-                  </label>
-                  <textarea
-                    className="w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/40 resize-none min-h-20"
-                    value={symptomsInput}
-                    onChange={(e) =>
-                      setSymptomsInput(e.target.value)
-                    }
-                    placeholder="Comma separated..."
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-medium uppercase tracking-wide text-slate-300">
-                    Plan
-                  </label>
-                  <textarea
-                    className="w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/40 resize-none min-h-20"
-                    value={possibleSolutions}
-                    onChange={(e) =>
-                      setPossibleSolutions(e.target.value)
-                    }
-                    placeholder="Treatment plan..."
-                  />
-                </div>
-              </div>
-            </section>
+            <TelemedicineSessionControl
+              sessionId={sessionId}
+              onSessionIdChange={(val) => {
+                setSessionId(val);
+                setRoomName(val ? `telemedicine-${val}` : "");
+              }}
+              displayName={displayName}
+              onDisplayNameChange={setDisplayName}
+              roomName={roomName}
+              roomMode={roomMode}
+              onRoomModeChange={setRoomMode}
+              isFetchingToken={isFetchingToken}
+              onJoinRoom={() => void fetchRoomToken()}
+              roomStatus={roomStatus}
+              roomNotes={roomNotes}
+              onRoomNotesChange={setRoomNotes}
+              symptomsInput={symptomsInput}
+              onSymptomsInputChange={setSymptomsInput}
+              possibleSolutions={possibleSolutions}
+              onPossibleSolutionsChange={setPossibleSolutions}
+            />
 
             <aside className="space-y-4">
               <section className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-lg backdrop-blur">
@@ -800,6 +767,9 @@ export default function TelemedicinePage() {
                       }
                       patientId={item.patient_id}
                       mode={item.preferred_mode || "video"}
+                      urgency={item.ai_urgency_level}
+                      score={item.ai_triage_score}
+                      specialty={item.ai_specialty}
                     />
                   ))}
                   {telemedicineQueue.length === 0 && (

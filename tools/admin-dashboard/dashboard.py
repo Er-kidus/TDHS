@@ -22,7 +22,7 @@ PORTS = {
     "Patient Portal": 3000,
     "Org Portal": 4000,
     "Organization Registration Portal": 4173,
-    "Super Admin Portal": 5000,
+    "Super Admin Portal": 5500,
     "API Gateway": 8000,
     "LiveKit HTTP": 7880,
     "LiveKit RTC": 7881,
@@ -30,6 +30,7 @@ PORTS = {
     "ngrok API (Fallback)": 4041,
     "Front Door": 8090,
     "pgadmin": 5050,
+    "AI Triage Service": 8001,
 }
 
 
@@ -86,19 +87,31 @@ class StackDashboard(tk.Tk):
         self.ngrok_runtime_config = self.logs_dir / "ngrok-runtime.yml"
         self.ngrok_runtime_config_patient = self.logs_dir / "ngrok-runtime-patient.yml"
         self.ngrok_runtime_config_org = self.logs_dir / "ngrok-runtime-org.yml"
+        self.ngrok_runtime_config_superadmin = self.logs_dir / "ngrok-runtime-superadmin.yml"
+        self.ngrok_runtime_config_registration = self.logs_dir / "ngrok-runtime-registration.yml"
 
         self.local_ip = self._detect_local_ip()
         self.local_patient_url = f"http://{self.local_ip}:3000"
         self.local_org_url = f"http://{self.local_ip}:4000"
+        self.local_superadmin_url = f"http://{self.local_ip}:5500"
+        self.local_registration_url = f"http://{self.local_ip}:4173"
 
         self.ngrok_patient_url_var = tk.StringVar(value="Not running")
         self.ngrok_org_url_var = tk.StringVar(value="Not running")
+        self.ngrok_superadmin_url_var = tk.StringVar(value="Not running")
+        self.ngrok_registration_url_var = tk.StringVar(value="Not running")
         self.local_patient_url_var = tk.StringVar(value=self.local_patient_url)
         self.local_org_url_var = tk.StringVar(value=self.local_org_url)
+        self.local_superadmin_url_var = tk.StringVar(value=self.local_superadmin_url)
+        self.local_registration_url_var = tk.StringVar(value=self.local_registration_url)
+        self.local_landing_url = f"http://{self.local_ip}:5500"
+        self.local_landing_url_var = tk.StringVar(value=self.local_landing_url)
         self.status_summary_var = tk.StringVar(value="Preparing local control center")
         self.ngrok_mode_var = tk.StringVar(value="ngrok not configured")
         self.patient_token_var = tk.StringVar()
         self.org_token_var = tk.StringVar()
+        self.sa_token_var = tk.StringVar()
+        self.reg_token_var = tk.StringVar()
 
         self._ngrok_mode_note = ""
         self._pre_ui_logs: list[str] = []
@@ -141,7 +154,7 @@ class StackDashboard(tk.Tk):
                 cwd=self.repo_root,
             ),
             "superadmin": ManagedProcess(
-                name="Super Admin Portal",
+                name="Main Web App (Landing + Super Admin)",
                 command=[
                     self.npm_bin,
                     "--prefix",
@@ -152,7 +165,7 @@ class StackDashboard(tk.Tk):
                     "--host",
                     "0.0.0.0",
                     "--port",
-                    "5000",
+                    "5500",
                 ],
                 cwd=self.repo_root,
             ),
@@ -259,32 +272,37 @@ class StackDashboard(tk.Tk):
         return env
 
     def _load_dashboard_env_vars(self) -> None:
-        if not self.dashboard_env_path.exists():
-            return
+        env_files = [self.repo_root / ".env", self.dashboard_env_path]
+        for env_path in env_files:
+            if not env_path.exists():
+                continue
+            try:
+                for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+                    line = raw_line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    key, value = line.split("=", 1)
+                    key = key.strip()
+                    value = value.strip().strip('"').strip("'")
+                    if key and value and key not in os.environ:
+                        os.environ[key] = value
+            except Exception as exc:
+                self.log(f"Could not read env file {env_path}: {exc}")
 
-        try:
-            for raw_line in self.dashboard_env_path.read_text(encoding="utf-8").splitlines():
-                line = raw_line.strip()
-                if not line or line.startswith("#") or "=" not in line:
-                    continue
-                key, value = line.split("=", 1)
-                key = key.strip()
-                value = value.strip().strip('"').strip("'")
-                if key and value and key not in os.environ:
-                    os.environ[key] = value
-        except Exception as exc:
-            self.log(f"Could not read dashboard env file: {exc}")
-
-    def _ngrok_tokens(self) -> tuple[str, str, str]:
+    def _ngrok_tokens(self) -> tuple[str, str, str, str, str]:
         patient_token = (os.environ.get("NGROK_AUTHTOKEN_PATIENT") or "").strip()
         org_token = (os.environ.get("NGROK_AUTHTOKEN_ORG") or "").strip()
+        sa_token = (os.environ.get("NGROK_AUTHTOKEN_SUPERADMIN") or "").strip()
+        reg_token = (os.environ.get("NGROK_AUTHTOKEN_REGISTRATION") or "").strip()
         shared_token = (os.environ.get("NGROK_AUTHTOKEN") or "").strip()
-        return patient_token, org_token, shared_token
+        return patient_token, org_token, sa_token, reg_token, shared_token
 
     def _sync_token_vars_from_env(self) -> None:
-        patient_token, org_token, shared_token = self._ngrok_tokens()
+        patient_token, org_token, sa_token, reg_token, shared_token = self._ngrok_tokens()
         self.patient_token_var.set(patient_token or shared_token)
         self.org_token_var.set(org_token or shared_token)
+        self.sa_token_var.set(sa_token or shared_token)
+        self.reg_token_var.set(reg_token or shared_token)
 
     @staticmethod
     def _masked_token(value: str) -> str:
@@ -309,7 +327,7 @@ class StackDashboard(tk.Tk):
         return ""
 
     def _load_effective_ngrok_token(self) -> str:
-        _patient_token, _org_token, shared_token = self._ngrok_tokens()
+        _patient_token, _org_token, _sa_token, _reg_token, shared_token = self._ngrok_tokens()
         if shared_token:
             return shared_token
         return self._load_ngrok_authtoken_from_default_configs()
@@ -322,6 +340,8 @@ class StackDashboard(tk.Tk):
         web_addr: str,
         include_patient: bool,
         include_org: bool,
+        include_superadmin: bool = False,
+        include_registration: bool = False,
     ) -> list[str]:
         try:
             token = authtoken.strip()
@@ -351,6 +371,21 @@ class StackDashboard(tk.Tk):
                     "  org-tunnel:",
                     "    proto: http",
                     "    addr: 127.0.0.1:4000",
+                    "  livekit-tunnel:",
+                    "    proto: http",
+                    "    addr: 127.0.0.1:7880",
+                ]
+            if include_superadmin:
+                runtime_lines += [
+                    "  superadmin-tunnel:",
+                    "    proto: http",
+                    "    addr: 127.0.0.1:5500",
+                ]
+            if include_registration:
+                runtime_lines += [
+                    "  registration-tunnel:",
+                    "    proto: http",
+                    "    addr: 127.0.0.1:4173",
                 ]
 
             config_path.write_text("\n".join(runtime_lines) + "\n", encoding="utf-8")
@@ -394,7 +429,7 @@ class StackDashboard(tk.Tk):
             self.log(f"Failed to start {managed.name}: {exc}")
 
     def _configure_ngrok_processes(self) -> None:
-        for key in ("ngrok", "ngrok_patient", "ngrok_org"):
+        for key in ("ngrok", "ngrok_patient", "ngrok_org", "ngrok_superadmin", "ngrok_registration"):
             self.processes.pop(key, None)
 
         self._ngrok_mode_note = ""
@@ -403,7 +438,7 @@ class StackDashboard(tk.Tk):
             self.ngrok_mode_var.set("ngrok CLI not found in PATH")
             return
 
-        patient_token, org_token, _shared_token = self._ngrok_tokens()
+        patient_token, org_token, sa_token, reg_token, _shared_token = self._ngrok_tokens()
 
         if patient_token and org_token and patient_token != org_token:
             patient_config_args = self._build_ngrok_config_args(
@@ -430,6 +465,12 @@ class StackDashboard(tk.Tk):
                 command=[self.ngrok_bin, "start", "org-tunnel", *org_config_args, "--log", "stdout"],
                 cwd=self.repo_root,
             )
+            if sa_token:
+                sa_config_args = self._build_ngrok_config_args(config_path=self.ngrok_runtime_config_superadmin, authtoken=sa_token, web_addr="127.0.0.1:4042", include_patient=False, include_org=False, include_superadmin=True)
+                self.processes["ngrok_superadmin"] = ManagedProcess(name="ngrok (Super Admin)", command=[self.ngrok_bin, "start", "superadmin-tunnel", *sa_config_args, "--log", "stdout"], cwd=self.repo_root)
+            if reg_token:
+                reg_config_args = self._build_ngrok_config_args(config_path=self.ngrok_runtime_config_registration, authtoken=reg_token, web_addr="127.0.0.1:4043", include_patient=False, include_org=False, include_registration=True)
+                self.processes["ngrok_registration"] = ManagedProcess(name="ngrok (Registration)", command=[self.ngrok_bin, "start", "registration-tunnel", *reg_config_args, "--log", "stdout"], cwd=self.repo_root)
             self._ngrok_mode_note = "ngrok dual-account mode enabled from separate patient and organization tokens."
             self.ngrok_mode_var.set(
                 f"Dual-account mode active. Patient {self._masked_token(patient_token)} | Org {self._masked_token(org_token)}"
@@ -458,9 +499,11 @@ class StackDashboard(tk.Tk):
     def save_ngrok_tokens(self) -> None:
         patient_token = self.patient_token_var.get().strip()
         org_token = self.org_token_var.get().strip()
+        sa_token = self.sa_token_var.get().strip()
+        reg_token = self.reg_token_var.get().strip()
 
         if not patient_token or not org_token:
-            messagebox.showwarning("Missing tokens", "Enter both patient and organization ngrok tokens before saving.")
+            messagebox.showwarning("Missing tokens", "Enter at least patient and organization ngrok tokens before saving.")
             return
 
         try:
@@ -470,6 +513,8 @@ class StackDashboard(tk.Tk):
                         "# Local-only admin dashboard secrets",
                         f"NGROK_AUTHTOKEN_PATIENT={patient_token}",
                         f"NGROK_AUTHTOKEN_ORG={org_token}",
+                        f"NGROK_AUTHTOKEN_SUPERADMIN={sa_token}",
+                        f"NGROK_AUTHTOKEN_REGISTRATION={reg_token}",
                         "",
                     ]
                 ),
@@ -477,10 +522,12 @@ class StackDashboard(tk.Tk):
             )
             os.environ["NGROK_AUTHTOKEN_PATIENT"] = patient_token
             os.environ["NGROK_AUTHTOKEN_ORG"] = org_token
+            os.environ["NGROK_AUTHTOKEN_SUPERADMIN"] = sa_token
+            os.environ["NGROK_AUTHTOKEN_REGISTRATION"] = reg_token
             self._configure_ngrok_processes()
             self._refresh_summary_banner()
-            self.log(f"Saved dual ngrok tokens to {self.dashboard_env_path}.")
-            messagebox.showinfo("ngrok configured", "Both ngrok tokens were saved locally and dual-account tunnel mode is ready.")
+            self.log(f"Saved ngrok tokens to {self.dashboard_env_path}.")
+            messagebox.showinfo("ngrok configured", "ngrok tokens were saved locally and tunnel mode is ready.")
         except Exception as exc:
             messagebox.showerror("Save failed", f"Could not save dashboard ngrok tokens.\n\n{exc}")
 
@@ -504,6 +551,10 @@ class StackDashboard(tk.Tk):
         stack_menu.add_separator()
         stack_menu.add_command(label="Restart All", command=self.restart_all)
         stack_menu.add_command(label="Stop All", command=self.stop_all)
+        stack_menu.add_separator()
+        stack_menu.add_command(label="Start Landing Page", command=self.start_landing)
+        stack_menu.add_command(label="Stop Landing Page", command=self.stop_landing)
+        stack_menu.add_command(label="Open Landing Page", command=self.open_local_landing_url)
         menu.add_cascade(label="Stack", menu=stack_menu)
 
         ngrok_menu = tk.Menu(menu, tearoff=0, bg="#0f172a", fg="#e2e8f0")
@@ -513,8 +564,14 @@ class StackDashboard(tk.Tk):
         ngrok_menu.add_command(label="Start Org Tunnel", command=self.start_ngrok_org)
         ngrok_menu.add_command(label="Stop Org Tunnel", command=self.stop_ngrok_org)
         ngrok_menu.add_separator()
-        ngrok_menu.add_command(label="Start Both Tunnels", command=self.start_ngrok)
-        ngrok_menu.add_command(label="Stop Both Tunnels", command=self.stop_ngrok)
+        ngrok_menu.add_command(label="Start Super Admin Tunnel", command=self.start_ngrok_superadmin)
+        ngrok_menu.add_command(label="Stop Super Admin Tunnel", command=self.stop_ngrok_superadmin)
+        ngrok_menu.add_separator()
+        ngrok_menu.add_command(label="Start Registration Tunnel", command=self.start_ngrok_registration)
+        ngrok_menu.add_command(label="Stop Registration Tunnel", command=self.stop_ngrok_registration)
+        ngrok_menu.add_separator()
+        ngrok_menu.add_command(label="Start All Tunnels", command=self.start_ngrok)
+        ngrok_menu.add_command(label="Stop All Tunnels", command=self.stop_ngrok)
         ngrok_menu.add_separator()
         ngrok_menu.add_command(label="Open Patient Public", command=self.open_patient_ngrok_url)
         ngrok_menu.add_command(label="Open Org Public", command=self.open_org_ngrok_url)
@@ -634,6 +691,14 @@ class StackDashboard(tk.Tk):
         row5.pack(fill=tk.X, pady=2)
         self._make_button(row5, "Start Org", self.start_ngrok_org, self.colors["violet"]).pack(side=tk.LEFT, padx=3)
         self._make_button(row5, "Stop Org", self.stop_ngrok_org, self.colors["slate"]).pack(side=tk.LEFT, padx=3)
+        row5b = tk.Frame(card_tunnels, bg=self.colors["panel2"])
+        row5b.pack(fill=tk.X, pady=2)
+        self._make_button(row5b, "Start SA", self.start_ngrok_superadmin, "#0f766e").pack(side=tk.LEFT, padx=3)
+        self._make_button(row5b, "Stop SA", self.stop_ngrok_superadmin, self.colors["slate"]).pack(side=tk.LEFT, padx=3)
+        row5c = tk.Frame(card_tunnels, bg=self.colors["panel2"])
+        row5c.pack(fill=tk.X, pady=2)
+        self._make_button(row5c, "Start Reg", self.start_ngrok_registration, "#047857").pack(side=tk.LEFT, padx=3)
+        self._make_button(row5c, "Stop Reg", self.stop_ngrok_registration, self.colors["slate"]).pack(side=tk.LEFT, padx=3)
         row6 = tk.Frame(card_tunnels, bg=self.colors["panel2"])
         row6.pack(fill=tk.X, pady=2)
         self._make_button(row6, "Open Patient Public", self.open_patient_ngrok_url, self.colors["blue"]).pack(side=tk.LEFT, padx=3)
@@ -643,12 +708,40 @@ class StackDashboard(tk.Tk):
         card_local.grid(row=0, column=2, sticky="nsew", padx=(8, 0))
         tk.Label(card_local, text="Access Points", font=("Segoe UI Semibold", 12), fg=self.colors["text"], bg=self.colors["panel2"]).pack(anchor="w", pady=(0, 6))
         tk.Label(card_local, textvariable=self.status_summary_var, font=("Segoe UI", 9), fg=self.colors["muted"], bg=self.colors["panel2"], wraplength=320, justify="left").pack(anchor="w", pady=(0, 10))
-        self._make_button(card_local, "Open Local Patient", self.open_local_patient_url, "#0891b2").pack(anchor="w", pady=2)
-        self._make_button(card_local, "Open Local Org", self.open_local_org_url, "#0369a1").pack(anchor="w", pady=2)
+
+        # Local portal open buttons
+        local_btns = tk.Frame(card_local, bg=self.colors["panel2"])
+        local_btns.pack(fill=tk.X, pady=(0, 4))
+        self._make_button(local_btns, "Patient", self.open_local_patient_url, "#0891b2").pack(side=tk.LEFT, padx=(0, 4))
+        self._make_button(local_btns, "Org", self.open_local_org_url, "#0369a1").pack(side=tk.LEFT, padx=(0, 4))
+        self._make_button(local_btns, "Super Admin", self.open_local_superadmin_url, "#0f766e").pack(side=tk.LEFT, padx=(0, 4))
+        self._make_button(local_btns, "Reg", self.open_local_registration_url, "#047857").pack(side=tk.LEFT)
+
+        # Landing page row
+        landing_btns = tk.Frame(card_local, bg=self.colors["panel2"])
+        landing_btns.pack(fill=tk.X, pady=(0, 4))
+        self._make_button(landing_btns, "▶ Start Landing", self.start_landing, "#6d28d9").pack(side=tk.LEFT, padx=(0, 4))
+        self._make_button(landing_btns, "⏹ Stop Landing", self.stop_landing, self.colors["slate"]).pack(side=tk.LEFT, padx=(0, 4))
+        self._make_button(landing_btns, "⤴ Open Landing", self.open_local_landing_url, "#7c3aed").pack(side=tk.LEFT)
+
+        # Public tunnel open buttons
+        pub_btns = tk.Frame(card_local, bg=self.colors["panel2"])
+        pub_btns.pack(fill=tk.X, pady=(0, 6))
+        self._make_button(pub_btns, "Patient Public", self.open_patient_ngrok_url, "#4f46e5").pack(side=tk.LEFT, padx=(0, 4))
+        self._make_button(pub_btns, "Org Public", self.open_org_ngrok_url, "#3730a3").pack(side=tk.LEFT, padx=(0, 4))
+        self._make_button(pub_btns, "SA Public", self.open_superadmin_ngrok_url, "#065f46").pack(side=tk.LEFT, padx=(0, 4))
+        self._make_button(pub_btns, "Reg Public", self.open_registration_ngrok_url, "#064e3b").pack(side=tk.LEFT)
+
+        # LAN info rows
         self._make_info_row(card_local, "Patient LAN", self.local_patient_url_var, "#67e8f9")
-        self._make_info_row(card_local, "Organization LAN", self.local_org_url_var, "#7dd3fc")
+        self._make_info_row(card_local, "Org LAN", self.local_org_url_var, "#7dd3fc")
+        self._make_info_row(card_local, "Super Admin LAN", self.local_superadmin_url_var, "#6ee7b7")
+        self._make_info_row(card_local, "Registration LAN", self.local_registration_url_var, "#a7f3d0")
+        # Public ngrok info rows
         self._make_info_row(card_local, "Patient Public", self.ngrok_patient_url_var, "#c4b5fd")
-        self._make_info_row(card_local, "Organization Public", self.ngrok_org_url_var, "#bfdbfe")
+        self._make_info_row(card_local, "Org Public", self.ngrok_org_url_var, "#bfdbfe")
+        self._make_info_row(card_local, "SA Public", self.ngrok_superadmin_url_var, "#6ee7b7")
+        self._make_info_row(card_local, "Reg Public", self.ngrok_registration_url_var, "#a7f3d0")
 
         bottom_left = tk.Frame(controls, bg=self.colors["bg"])
         bottom_left.grid(row=1, column=0, sticky="nsew", padx=(0, 12))
@@ -658,7 +751,7 @@ class StackDashboard(tk.Tk):
         status_card = self._make_card(bottom_left)
         status_card.grid(row=0, column=0, sticky="ew", pady=(0, 12))
         tk.Label(status_card, text="Service Mesh", font=("Segoe UI Semibold", 12), fg=self.colors["text"], bg=self.colors["panel2"]).pack(anchor="w", pady=(0, 6))
-        tk.Label(status_card, text="Live port health across portals, API, LiveKit, and ngrok diagnostics.", font=("Segoe UI", 9), fg=self.colors["muted"], bg=self.colors["panel2"]).pack(anchor="w", pady=(0, 10))
+        tk.Label(status_card, text="Live port health across portals, API, LiveKit, ngrok diagnostics, and tunnel access links.", font=("Segoe UI", 9), fg=self.colors["muted"], bg=self.colors["panel2"]).pack(anchor="w", pady=(0, 10))
         for service, port in PORTS.items():
             row = tk.Frame(status_card, bg=self.colors["panel2"], highlightthickness=1, highlightbackground=self.colors["line"])
             row.pack(fill=tk.X, pady=3)
@@ -667,6 +760,14 @@ class StackDashboard(tk.Tk):
             badge = tk.Label(row, text="CHECKING", font=("Segoe UI", 9, "bold"), fg="#08111d", bg="#9ca3af", padx=12, pady=4)
             badge.pack(side=tk.RIGHT, padx=10)
             self.port_badges[service] = badge
+
+        # Tunnel access rows in Service Mesh
+        tk.Frame(status_card, bg=self.colors["line"], height=1).pack(fill=tk.X, pady=(8, 6))
+        tk.Label(status_card, text="Public Tunnel Access", font=("Segoe UI", 9, "bold"), fg=self.colors["muted"], bg=self.colors["panel2"]).pack(anchor="w", padx=10, pady=(0, 4))
+        self._make_service_mesh_tunnel_row(status_card, "Patient Portal", self.ngrok_patient_url_var, "#c4b5fd", self.open_patient_ngrok_url)
+        self._make_service_mesh_tunnel_row(status_card, "Org Portal", self.ngrok_org_url_var, "#bfdbfe", self.open_org_ngrok_url)
+        self._make_service_mesh_tunnel_row(status_card, "Super Admin Portal", self.ngrok_superadmin_url_var, "#6ee7b7", self.open_superadmin_ngrok_url)
+        self._make_service_mesh_tunnel_row(status_card, "Org Registration Portal", self.ngrok_registration_url_var, "#a7f3d0", self.open_registration_ngrok_url)
 
         log_card = self._make_card(bottom_left)
         log_card.grid(row=1, column=0, sticky="nsew")
@@ -697,6 +798,8 @@ class StackDashboard(tk.Tk):
         tk.Label(token_card, text="Store separate patient and organization ngrok tokens locally. The file stays ignored by git.", font=("Segoe UI", 9), fg=self.colors["muted"], bg=self.colors["panel2"], wraplength=360, justify="left").pack(anchor="w", pady=(0, 12))
         self._make_entry(token_card, "Patient token", self.patient_token_var)
         self._make_entry(token_card, "Organization token", self.org_token_var)
+        self._make_entry(token_card, "Super Admin token", self.sa_token_var)
+        self._make_entry(token_card, "Registration token", self.reg_token_var)
         token_actions = tk.Frame(token_card, bg=self.colors["panel2"])
         token_actions.pack(fill=tk.X, pady=(8, 0))
         self._make_button(token_actions, "Save Tokens", self.save_ngrok_tokens, self.colors["violet"]).pack(side=tk.LEFT, padx=(0, 8))
@@ -719,6 +822,8 @@ class StackDashboard(tk.Tk):
         tk.Label(right_info, text="Monitor public links and confirm which ngrok mode the dashboard is running.", font=("Segoe UI", 9), fg=self.colors["muted"], bg=self.colors["panel2"], wraplength=360, justify="left").pack(anchor="w", pady=(0, 12))
         self._make_info_row(right_info, "Patient HTTPS", self.ngrok_patient_url_var, "#93c5fd")
         self._make_info_row(right_info, "Organization HTTPS", self.ngrok_org_url_var, "#93c5fd")
+        self._make_info_row(right_info, "Super Admin HTTPS", self.ngrok_superadmin_url_var, "#6ee7b7")
+        self._make_info_row(right_info, "Registration HTTPS", self.ngrok_registration_url_var, "#a7f3d0")
         self._make_info_row(right_info, "Current mode", self.ngrok_mode_var, "#fde68a")
 
         self.log("Dashboard initialized.")
@@ -770,6 +875,21 @@ class StackDashboard(tk.Tk):
         row.pack(fill=tk.X, pady=4)
         tk.Label(row, text=label, font=("Segoe UI", 9, "bold"), fg="#dbe7f5", bg=self.colors["panel2"]).pack(anchor="w", padx=10, pady=(8, 2))
         tk.Label(row, textvariable=value_var, font=("Consolas", 9), fg=value_color, bg=self.colors["panel2"], wraplength=340, justify="left").pack(anchor="w", padx=10, pady=(0, 8))
+
+    def _make_service_mesh_tunnel_row(self, parent: tk.Widget, label: str, url_var: tk.StringVar, accent: str, open_cmd) -> None:
+        """Render a clickable tunnel status row in the Service Mesh panel."""
+        row = tk.Frame(parent, bg=self.colors["panel2"], highlightthickness=1, highlightbackground=self.colors["line"])
+        row.pack(fill=tk.X, pady=3)
+        tk.Label(row, text=label, font=("Segoe UI", 10, "bold"), fg="#dbe7f5", bg=self.colors["panel2"]).pack(side=tk.LEFT, padx=10, pady=8)
+        url_lbl = tk.Label(row, textvariable=url_var, font=("Consolas", 8), fg=accent, bg=self.colors["panel2"], wraplength=260, justify="left")
+        url_lbl.pack(side=tk.LEFT, padx=(0, 8), pady=8)
+        open_btn = tk.Button(
+            row, text="Open", command=open_cmd,
+            font=("Segoe UI Semibold", 8), bg="#1e3a5f", fg="#93c5fd",
+            activebackground="#1e40af", activeforeground="#ffffff",
+            relief=tk.FLAT, bd=0, padx=8, pady=3, cursor="hand2",
+        )
+        open_btn.pack(side=tk.RIGHT, padx=10)
 
     def _make_entry(self, parent: tk.Widget, label: str, value_var: tk.StringVar) -> None:
         wrapper = tk.Frame(parent, bg=self.colors["panel2"])
@@ -877,7 +997,12 @@ class StackDashboard(tk.Tk):
 
         tunnel_count = sum(
             1
-            for value in (self.ngrok_patient_url_var.get().strip(), self.ngrok_org_url_var.get().strip())
+            for value in (
+                self.ngrok_patient_url_var.get().strip(),
+                self.ngrok_org_url_var.get().strip(),
+                self.ngrok_superadmin_url_var.get().strip(),
+                self.ngrok_registration_url_var.get().strip(),
+            )
             if value.startswith("http")
         )
         self.summary_metric_vars["tunnels"].set(f"{tunnel_count} live")
@@ -934,7 +1059,7 @@ class StackDashboard(tk.Tk):
         }
         self.run_command(
             [self.docker_bin, "compose", "up", "-d", "postgres", "redis", "livekit", "api-gateway", "front-door", "pgadmin"],
-        "Start backend",
+            "Start backend",
             env_overrides=backend_env,
         )
 
@@ -1059,6 +1184,36 @@ class StackDashboard(tk.Tk):
             return
         self.stop_ngrok()
 
+    def start_ngrok_superadmin(self) -> None:
+        self._configure_ngrok_processes()
+        if "ngrok_superadmin" in self.processes:
+            self._start_managed_process("ngrok_superadmin")
+        else:
+            self.log("Super Admin ngrok tunnel not configured. Save a Super Admin token first.")
+
+    def stop_ngrok_superadmin(self) -> None:
+        if "ngrok_superadmin" in self.processes:
+            self._stop_managed_process("ngrok_superadmin")
+            self.log("Super Admin ngrok tunnel stopped.")
+            self._refresh_summary_banner()
+        else:
+            self.log("Super Admin ngrok tunnel is not running.")
+
+    def start_ngrok_registration(self) -> None:
+        self._configure_ngrok_processes()
+        if "ngrok_registration" in self.processes:
+            self._start_managed_process("ngrok_registration")
+        else:
+            self.log("Registration ngrok tunnel not configured. Save a Registration token first.")
+
+    def stop_ngrok_registration(self) -> None:
+        if "ngrok_registration" in self.processes:
+            self._stop_managed_process("ngrok_registration")
+            self.log("Registration ngrok tunnel stopped.")
+            self._refresh_summary_banner()
+        else:
+            self.log("Registration ngrok tunnel is not running.")
+
     def start_ngrok_org(self) -> None:
         self._configure_ngrok_processes()
         if "ngrok_org" in self.processes:
@@ -1080,6 +1235,8 @@ class StackDashboard(tk.Tk):
         if "ngrok_patient" in self.processes and "ngrok_org" in self.processes:
             self._start_managed_process("ngrok_patient")
             self._start_managed_process("ngrok_org")
+            if "ngrok_superadmin" in self.processes: self._start_managed_process("ngrok_superadmin")
+            if "ngrok_registration" in self.processes: self._start_managed_process("ngrok_registration")
             return
 
         if "ngrok" not in self.processes:
@@ -1093,14 +1250,20 @@ class StackDashboard(tk.Tk):
             self._stop_managed_process("ngrok_patient")
         if "ngrok_org" in self.processes:
             self._stop_managed_process("ngrok_org")
+        if "ngrok_superadmin" in self.processes:
+            self._stop_managed_process("ngrok_superadmin")
+        if "ngrok_registration" in self.processes:
+            self._stop_managed_process("ngrok_registration")
         if "ngrok" in self.processes:
             self._stop_managed_process("ngrok")
         self.ngrok_patient_url_var.set("Not running")
         self.ngrok_org_url_var.set("Not running")
+        self.ngrok_superadmin_url_var.set("Not running")
+        self.ngrok_registration_url_var.set("Not running")
         self._refresh_summary_banner()
 
     def _get_ngrok_public_url(self, target_port: int) -> str | None:
-        for api_port in (4040, 4041):
+        for api_port in (4040, 4041, 4042, 4043):
             try:
                 with urllib_request.urlopen(f"http://127.0.0.1:{api_port}/api/tunnels", timeout=1.0) as response:
                     payload = json.loads(response.read().decode("utf-8"))
@@ -1121,26 +1284,36 @@ class StackDashboard(tk.Tk):
             def _worker() -> None:
                 patient_url = self._get_ngrok_public_url(3000)
                 org_url = self._get_ngrok_public_url(4000)
-                self.after(0, lambda: self._apply_ngrok_refresh(patient_url, org_url))
+                sa_url = self._get_ngrok_public_url(5500)
+                reg_url = self._get_ngrok_public_url(4173)
+                self.after(0, lambda: self._apply_ngrok_refresh(patient_url, org_url, sa_url, reg_url))
 
             threading.Thread(target=_worker, daemon=True).start()
         self.after(4000, self._schedule_ngrok_refresh)
 
-    def _apply_ngrok_refresh(self, patient_url: str | None, org_url: str | None) -> None:
+    def _apply_ngrok_refresh(self, patient_url: str | None, org_url: str | None, sa_url: str | None = None, reg_url: str | None = None) -> None:
         self.ngrok_scan_active = False
 
         ngrok_proc = self.processes.get("ngrok")
         ngrok_running = bool(ngrok_proc and ngrok_proc.process and ngrok_proc.process.poll() is None)
         ngrok_patient_proc = self.processes.get("ngrok_patient")
         ngrok_org_proc = self.processes.get("ngrok_org")
+        ngrok_sa_proc = self.processes.get("ngrok_superadmin")
+        ngrok_reg_proc = self.processes.get("ngrok_registration")
         ngrok_patient_running = bool(ngrok_patient_proc and ngrok_patient_proc.process and ngrok_patient_proc.process.poll() is None)
         ngrok_org_running = bool(ngrok_org_proc and ngrok_org_proc.process and ngrok_org_proc.process.poll() is None)
+        ngrok_sa_running = bool(ngrok_sa_proc and ngrok_sa_proc.process and ngrok_sa_proc.process.poll() is None)
+        ngrok_reg_running = bool(ngrok_reg_proc and ngrok_reg_proc.process and ngrok_reg_proc.process.poll() is None)
 
         patient_starting = ngrok_running or ngrok_patient_running
         org_starting = ngrok_running or ngrok_org_running
+        sa_starting = ngrok_sa_running
+        reg_starting = ngrok_reg_running
 
         self.ngrok_patient_url_var.set(patient_url if patient_url else ("Starting..." if patient_starting else "Not running"))
         self.ngrok_org_url_var.set(org_url if org_url else ("Starting..." if org_starting else "Not running"))
+        self.ngrok_superadmin_url_var.set(sa_url if sa_url else ("Starting..." if sa_starting else "Not running"))
+        self.ngrok_registration_url_var.set(reg_url if reg_url else ("Starting..." if reg_starting else "Not running"))
         self._refresh_summary_banner()
 
     def open_patient_ngrok_url(self) -> None:
@@ -1161,6 +1334,24 @@ class StackDashboard(tk.Tk):
         webbrowser.open(url)
         self.log(f"Opened org public URL: {url}")
 
+    def open_superadmin_ngrok_url(self) -> None:
+        live_url = self._get_ngrok_public_url(5500)
+        url = live_url or self.ngrok_superadmin_url_var.get().strip()
+        if not url.startswith("http"):
+            self.log("No Super Admin ngrok URL available yet. Start the Super Admin tunnel first.")
+            return
+        webbrowser.open(url)
+        self.log(f"Opened Super Admin public URL: {url}")
+
+    def open_registration_ngrok_url(self) -> None:
+        live_url = self._get_ngrok_public_url(4173)
+        url = live_url or self.ngrok_registration_url_var.get().strip()
+        if not url.startswith("http"):
+            self.log("No Registration ngrok URL available yet. Start the Registration tunnel first.")
+            return
+        webbrowser.open(url)
+        self.log(f"Opened Registration public URL: {url}")
+
     def open_local_patient_url(self) -> None:
         webbrowser.open(self.local_patient_url)
         self.log(f"Opened local patient URL: {self.local_patient_url}")
@@ -1168,6 +1359,25 @@ class StackDashboard(tk.Tk):
     def open_local_org_url(self) -> None:
         webbrowser.open(self.local_org_url)
         self.log(f"Opened local org URL: {self.local_org_url}")
+
+    def open_local_superadmin_url(self) -> None:
+        webbrowser.open(self.local_superadmin_url)
+        self.log(f"Opened local superadmin URL: {self.local_superadmin_url}")
+
+    def open_local_registration_url(self) -> None:
+        webbrowser.open(self.local_registration_url)
+        self.log(f"Opened local registration URL: {self.local_registration_url}")
+
+    def start_landing(self) -> None:
+        self._start_managed_process("superadmin")
+
+    def stop_landing(self) -> None:
+        self._stop_managed_process("superadmin")
+        self.log("Landing page / Super Admin stopped.")
+
+    def open_local_landing_url(self) -> None:
+        webbrowser.open(self.local_landing_url)
+        self.log(f"Opened landing page: {self.local_landing_url}")
 
     def _open_path(self, path: Path) -> None:
         try:

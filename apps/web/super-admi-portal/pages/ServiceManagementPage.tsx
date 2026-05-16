@@ -394,6 +394,27 @@ export default function ServiceManagementPage() {
     void saveInstallState(next);
   }
 
+  async function saveTierDefaults(tierKey: string, newDefaults: string[]) {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await apiFetch(`/org/tiers/${encodeURIComponent(tierKey)}/defaults`, {
+        token,
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ default_services: newDefaults }),
+      });
+      if (!res.ok) {
+        throw new Error(await getErrorMessage(res, "Failed to update tier defaults"));
+      }
+      void loadData(); // Reload to get updated defaults
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Failed to update tier defaults");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (loading && organizations.length === 0) {
     return (
       <CardShell title="Service Management" description="Loading service catalog and organization install state...">
@@ -436,6 +457,7 @@ export default function ServiceManagementPage() {
         <TabsList className="grid h-auto w-full grid-cols-3 gap-2 md:grid-cols-3">
           <TabsTrigger value="catalog">Catalog</TabsTrigger>
           <TabsTrigger value="install">Installed Lists</TabsTrigger>
+          <TabsTrigger value="defaults">Tier Defaults</TabsTrigger>
           <TabsTrigger value="compliance">FHIR & Compliance</TabsTrigger>
         </TabsList>
 
@@ -569,6 +591,63 @@ export default function ServiceManagementPage() {
                   <Badge variant={installedSet.has(service) ? "default" : "secondary"}>{installedSet.has(service) ? "Installed" : "Not installed"}</Badge>
                 </div>
               ))}
+            </div>
+          </CardShell>
+        </TabsContent>
+
+        <TabsContent value="defaults" className="space-y-4">
+          <div className="flex flex-wrap gap-1 rounded-lg border border-border/70 p-1 mb-4 w-max">
+            {TIER_DISPLAY_OPTIONS.map((option) => (
+              <Button
+                key={option.key}
+                size="sm"
+                variant={catalogTier === option.key ? "default" : "ghost"}
+                onClick={() => setCatalogTier(option.key)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+
+          <CardShell title="Tier Default Services" description={`Manage default services for ${TIER_DISPLAY_OPTIONS.find((option) => option.key === catalogTier)?.label || catalogTier}`}>
+            <div className="space-y-4">
+              <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+                {serviceDefinitions.map((service) => {
+                  const sName = service.name || service.serviceType || "";
+                  if (!sName) return null;
+                  
+                  const backendTier = BACKEND_TIER_BY_DOC_KEY[catalogTier];
+                  const currentDefaults = tierRequirementMap.get(backendTier)?.default_services || [];
+                  // Normalizing for comparison
+                  const isDefault = currentDefaults.some(d => d.toLowerCase() === sName.toLowerCase() || d.toLowerCase() === service.serviceType?.toLowerCase());
+
+                  return (
+                    <div key={service.id} className="flex items-start justify-between gap-3 rounded-lg border border-border/70 p-3">
+                      <div>
+                        <p className="text-sm font-medium">{sName}</p>
+                        <p className="text-xs text-muted-foreground">{service.serviceCategory || "General"}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant={isDefault ? "default" : "outline"}
+                        disabled={saving}
+                        onClick={() => {
+                          const backendServiceIdentifier = service.serviceType || service.name;
+                          let nextDefaults;
+                          if (isDefault) {
+                            nextDefaults = currentDefaults.filter(d => d.toLowerCase() !== backendServiceIdentifier.toLowerCase() && d.toLowerCase() !== sName.toLowerCase());
+                          } else {
+                            nextDefaults = [...currentDefaults, backendServiceIdentifier];
+                          }
+                          void saveTierDefaults(backendTier, nextDefaults);
+                        }}
+                      >
+                        {isDefault ? "Remove" : "Make Default"}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </CardShell>
         </TabsContent>

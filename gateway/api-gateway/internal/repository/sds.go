@@ -286,6 +286,8 @@ func (r *Repository) ListQueueEntries(ctx context.Context) ([]*model.QueueEntry,
 		SELECT qe.queue_id, q.service_type, q.facility, qe.appointment_id, qe.position, qe.status, qe.estimated_wait_minutes
 		FROM queue_entries qe
 		JOIN queues q ON q.id = qe.queue_id
+		JOIN appointments a ON a.id = qe.appointment_id
+		WHERE a.status NOT IN ('fulfilled', 'cancelled')
 		ORDER BY q.service_type, q.facility, qe.position ASC
 	`
 	rows, err := r.db.QueryContext(ctx, qry)

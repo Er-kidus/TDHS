@@ -94,7 +94,14 @@ func (r *Repository) ListDoctors(ctx context.Context, limit int) ([]*model.Docto
 			COALESCE(sp.telemedicine_enabled, FALSE),
 			COALESCE(sp.telemedicine_rate, 0),
 			COALESCE(sp.telemedicine_currency, 'ETB'),
-			COALESCE(sp.telemedicine_modes, '["video","voice","chat"]'::jsonb)
+			COALESCE(sp.telemedicine_modes, '["video","voice","chat"]'::jsonb),
+			sp.sub_specialty,
+			sp.languages_spoken,
+			sp.online_status,
+			sp.session_capacity,
+			sp.current_sessions,
+			sp.emergency_support,
+			sp.years_experience
 		FROM users
 		LEFT JOIN org_staff_profiles sp ON sp.user_id = users.id
 		LEFT JOIN user_roles ON user_roles.user_id = users.id
@@ -118,13 +125,24 @@ func (r *Repository) ListDoctors(ctx context.Context, limit int) ([]*model.Docto
 		var consultationRate float64
 		var consultationCurrency string
 		var telemedicineModesRaw []byte
-		if err := userRows.Scan(&id, &fullName, &roleName, &organizationName, &active, &createdAt, &telemedicineEnabled, &consultationRate, &consultationCurrency, &telemedicineModesRaw); err != nil {
+		var subSpecialty sql.NullString
+		var languagesSpokenRaw []byte
+		var onlineStatus sql.NullString
+		var sessionCapacity sql.NullInt64
+		var currentSessions sql.NullInt64
+		var emergencySupport sql.NullBool
+		var yearsExperience sql.NullInt64
+		if err := userRows.Scan(&id, &fullName, &roleName, &organizationName, &active, &createdAt, &telemedicineEnabled, &consultationRate, &consultationCurrency, &telemedicineModesRaw, &subSpecialty, &languagesSpokenRaw, &onlineStatus, &sessionCapacity, &currentSessions, &emergencySupport, &yearsExperience); err != nil {
 			return nil, err
 		}
 		telemedicineModes := []string{"video", "voice", "chat"}
 		if len(telemedicineModesRaw) > 0 {
 			_ = json.Unmarshal(telemedicineModesRaw, &telemedicineModes)
 		}
+		
+		languagesSpoken := []string{"en"}
+		if len(languagesSpokenRaw) > 0 { _ = json.Unmarshal(languagesSpokenRaw, &languagesSpoken) }
+
 		specialty := "General Practice"
 		if roleName != "" {
 			specialty = roleName
@@ -133,19 +151,29 @@ func (r *Repository) ListDoctors(ctx context.Context, limit int) ([]*model.Docto
 		if location == "" {
 			location = "Organization"
 		}
+		
+		var subSpecialtyVal *string
+		if subSpecialty.Valid { v := subSpecialty.String; subSpecialtyVal = &v }
+
 		addDoctor(&model.Doctor{
 			Base:                 model.Base{ID: id, CreatedAt: createdAt, UpdatedAt: createdAt},
 			FullName:             fullName,
 			Specialty:            specialty,
 			Location:             location,
 			Rating:               5,
-			YearsExp:             0,
+			YearsExp:             int(yearsExperience.Int64),
 			Available:            active,
-			Online:               active,
+			Online:               onlineStatus.String == "online" || onlineStatus.String == "busy",
 			TelemedicineEnabled:  telemedicineEnabled,
 			ConsultationRate:     consultationRate,
 			ConsultationCurrency: consultationCurrency,
 			TelemedicineModes:    telemedicineModes,
+			SubSpecialty:         subSpecialtyVal,
+			Languages:            languagesSpoken,
+			ConsultationModes:    telemedicineModes,
+			EmergencySupport:     emergencySupport.Bool,
+			CurrentSessions:      int(currentSessions.Int64),
+			SessionCapacity:      int(sessionCapacity.Int64),
 		})
 	}
 
@@ -154,6 +182,140 @@ func (r *Repository) ListDoctors(ctx context.Context, limit int) ([]*model.Docto
 	}
 
 	return out, nil
+}
+
+// GetAvailableDoctorsBySpecialty returns telemedicine-enabled doctors filtered by specialty
+// and online status, sorted by availability (fewest current sessions first).
+// specialty is a partial, case-insensitive match against role_name / specialty.
+// urgency: "emergent" | "urgent" broadens the filter to include emergency_support doctors.
+func (r *Repository) GetAvailableDoctorsBySpecialty(ctx context.Context, specialty, urgency string, limit int) ([]*model.Doctor, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+
+	emergencyOnly := urgency == "emergent" || urgency == "urgent"
+
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT
+			users.id,
+			COALESCE(users.full_name, ''),
+			COALESCE(user_roles.role_name, ''),
+			COALESCE(organizations.name, ''),
+			users.active,
+			users.created_at,
+			COALESCE(sp.telemedicine_enabled, FALSE),
+			COALESCE(sp.telemedicine_rate, 0),
+			COALESCE(sp.telemedicine_currency, 'ETB'),
+			COALESCE(sp.telemedicine_modes, '["video","voice","chat"]'::jsonb),
+			sp.sub_specialty,
+			sp.languages_spoken,
+			sp.online_status,
+			sp.session_capacity,
+			sp.current_sessions,
+			sp.emergency_support,
+			sp.years_experience
+		FROM users
+		LEFT JOIN org_staff_profiles sp ON sp.user_id = users.id
+		LEFT JOIN user_roles ON user_roles.user_id = users.id
+		LEFT JOIN organizations ON organizations.id = users.organization_id
+		WHERE users.active = TRUE
+		  AND COALESCE(sp.telemedicine_enabled, FALSE) = TRUE
+		  AND COALESCE(sp.online_status, 'offline') IN ('online', 'busy')
+		  AND ($1 = '' OR LOWER(COALESCE(user_roles.role_name, '')) ILIKE '%' || LOWER($1) || '%')
+		  AND ($2 = FALSE OR COALESCE(sp.emergency_support, FALSE) = TRUE)
+		ORDER BY COALESCE(sp.current_sessions, 0) ASC,
+		         COALESCE(sp.session_capacity, 1) - COALESCE(sp.current_sessions, 0) DESC
+		LIMIT $3
+	`, specialty, emergencyOnly, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []*model.Doctor
+	for rows.Next() {
+		var id, fullName, roleName, orgName string
+		var active bool
+		var createdAt time.Time
+		var telemedicineEnabled bool
+		var consultationRate float64
+		var consultationCurrency string
+		var telemedicineModesRaw []byte
+		var subSpecialty sql.NullString
+		var languagesSpokenRaw []byte
+		var onlineStatus sql.NullString
+		var sessionCapacity, currentSessions sql.NullInt64
+		var emergencySupport sql.NullBool
+		var yearsExperience sql.NullInt64
+
+		if err := rows.Scan(&id, &fullName, &roleName, &orgName, &active, &createdAt,
+			&telemedicineEnabled, &consultationRate, &consultationCurrency, &telemedicineModesRaw,
+			&subSpecialty, &languagesSpokenRaw, &onlineStatus, &sessionCapacity,
+			&currentSessions, &emergencySupport, &yearsExperience); err != nil {
+			return nil, err
+		}
+
+		telemedicineModes := []string{"video", "voice", "chat"}
+		if len(telemedicineModesRaw) > 0 {
+			_ = json.Unmarshal(telemedicineModesRaw, &telemedicineModes)
+		}
+		languagesSpoken := []string{"en"}
+		if len(languagesSpokenRaw) > 0 {
+			_ = json.Unmarshal(languagesSpokenRaw, &languagesSpoken)
+		}
+
+		specialty := "General Practice"
+		if roleName != "" {
+			specialty = roleName
+		}
+		location := orgName
+		if location == "" {
+			location = "Organization"
+		}
+
+		var subSpecialtyVal *string
+		if subSpecialty.Valid {
+			v := subSpecialty.String
+			subSpecialtyVal = &v
+		}
+
+		doc := &model.Doctor{
+			Base:                 model.Base{ID: id, CreatedAt: createdAt, UpdatedAt: createdAt},
+			FullName:             fullName,
+			Specialty:            specialty,
+			Location:             location,
+			Rating:               5,
+			YearsExp:             int(yearsExperience.Int64),
+			Available:            active,
+			Online:               onlineStatus.String == "online" || onlineStatus.String == "busy",
+			TelemedicineEnabled:  telemedicineEnabled,
+			ConsultationRate:     consultationRate,
+			ConsultationCurrency: consultationCurrency,
+			TelemedicineModes:    telemedicineModes,
+			SubSpecialty:         subSpecialtyVal,
+			Languages:            languagesSpoken,
+			ConsultationModes:    telemedicineModes,
+			EmergencySupport:     emergencySupport.Bool,
+			CurrentSessions:      int(currentSessions.Int64),
+			SessionCapacity:      int(sessionCapacity.Int64),
+		}
+		out = append(out, doc)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// UpdateDoctorOnlineStatus persists a clinician's real-time online_status to org_staff_profiles.
+func (r *Repository) UpdateDoctorOnlineStatus(ctx context.Context, userID, status string) error {
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO org_staff_profiles (user_id, online_status, updated_at)
+		VALUES ($1, $2, NOW())
+		ON CONFLICT (user_id)
+		DO UPDATE SET online_status = EXCLUDED.online_status, updated_at = NOW()
+	`, userID, status)
+	return err
 }
 
 func (r *Repository) ListPrescriptionsByPatient(ctx context.Context, patientID string, limit int) ([]*model.Prescription, error) {
@@ -382,7 +544,14 @@ func (r *Repository) ListTelemedicineSessionsByPatient(ctx context.Context, pati
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
-	qry := `SELECT id, patient_id, doctor_id, doctor_name, scheduled_at, preferred_mode, requested_amount, requested_currency, status, connection_status, notes, created_at, updated_at FROM patient_telemedicine_sessions WHERE patient_id=$1 ORDER BY scheduled_at DESC LIMIT $2`
+	qry := `
+		SELECT 
+			id, patient_id, doctor_id, doctor_name, scheduled_at, preferred_mode, 
+			requested_amount, requested_currency, status, connection_status, notes, 
+			ai_urgency_level, ai_triage_score, ai_specialty,
+			created_at, updated_at 
+		FROM patient_telemedicine_sessions WHERE patient_id=$1 ORDER BY scheduled_at DESC LIMIT $2
+	`
 	rows, err := r.db.QueryContext(ctx, qry, patientID, limit)
 	if err != nil {
 		return nil, err
@@ -393,7 +562,10 @@ func (r *Repository) ListTelemedicineSessionsByPatient(ctx context.Context, pati
 		var it model.TelemedicineSession
 		var doctorID sql.NullString
 		var notes sql.NullString
-		if err := rows.Scan(&it.ID, &it.PatientID, &doctorID, &it.DoctorName, &it.ScheduledAt, &it.PreferredMode, &it.RequestedAmount, &it.RequestedCurrency, &it.Status, &it.ConnectionStatus, &notes, &it.CreatedAt, &it.UpdatedAt); err != nil {
+		var aiUrgencyLevel sql.NullString
+		var aiTriageScore sql.NullInt64
+		var aiSpecialty sql.NullString
+		if err := rows.Scan(&it.ID, &it.PatientID, &doctorID, &it.DoctorName, &it.ScheduledAt, &it.PreferredMode, &it.RequestedAmount, &it.RequestedCurrency, &it.Status, &it.ConnectionStatus, &notes, &aiUrgencyLevel, &aiTriageScore, &aiSpecialty, &it.CreatedAt, &it.UpdatedAt); err != nil {
 			return nil, err
 		}
 		if doctorID.Valid {
@@ -404,17 +576,37 @@ func (r *Repository) ListTelemedicineSessionsByPatient(ctx context.Context, pati
 			v := notes.String
 			it.Notes = &v
 		}
+		if aiUrgencyLevel.Valid {
+			v := aiUrgencyLevel.String
+			it.AIUrgencyLevel = &v
+		}
+		if aiTriageScore.Valid {
+			v := int(aiTriageScore.Int64)
+			it.AITriageScore = &v
+		}
+		if aiSpecialty.Valid {
+			v := aiSpecialty.String
+			it.AISpecialty = &v
+		}
 		out = append(out, &it)
 	}
 	return out, rows.Err()
 }
 
-func (r *Repository) CreateTelemedicineSession(ctx context.Context, patientID string, doctorID *string, doctorName string, scheduledAt time.Time, preferredMode string, requestedAmount float64, requestedCurrency string, notes *string) (*model.TelemedicineSession, error) {
-	qry := `INSERT INTO patient_telemedicine_sessions (tenant_id, patient_id, doctor_id, doctor_name, scheduled_at, preferred_mode, requested_amount, requested_currency, status, connection_status, notes) VALUES ((SELECT id FROM tenants WHERE slug='default'), $1, $2, $3, $4, $5, $6, $7, 'pending', 'waiting', $8) RETURNING id, patient_id, doctor_id, doctor_name, scheduled_at, preferred_mode, requested_amount, requested_currency, status, connection_status, notes, created_at, updated_at`
+func (r *Repository) CreateTelemedicineSession(ctx context.Context, patientID string, doctorID *string, doctorName string, scheduledAt time.Time, preferredMode string, requestedAmount float64, requestedCurrency string, notes *string, aiUrgencyLevel *string, aiTriageScore *int, aiSpecialty *string) (*model.TelemedicineSession, error) {
+	qry := `
+		INSERT INTO patient_telemedicine_sessions (
+			tenant_id, patient_id, doctor_id, doctor_name, scheduled_at, preferred_mode, 
+			requested_amount, requested_currency, notes, status, connection_status,
+			ai_urgency_level, ai_triage_score, ai_specialty
+		)
+		VALUES ((SELECT id FROM tenants WHERE slug='default'), $1, $2, $3, $4, $5, $6, $7, $8, 'pending', 'waiting', $9, $10, $11)
+		RETURNING id, patient_id, doctor_id, doctor_name, scheduled_at, preferred_mode, requested_amount, requested_currency, status, connection_status, notes, created_at, updated_at
+	`
 	var it model.TelemedicineSession
 	var doctorIDOut sql.NullString
 	var notesOut sql.NullString
-	if err := r.db.QueryRowContext(ctx, qry, patientID, doctorID, doctorName, scheduledAt, preferredMode, requestedAmount, requestedCurrency, notes).Scan(&it.ID, &it.PatientID, &doctorIDOut, &it.DoctorName, &it.ScheduledAt, &it.PreferredMode, &it.RequestedAmount, &it.RequestedCurrency, &it.Status, &it.ConnectionStatus, &notesOut, &it.CreatedAt, &it.UpdatedAt); err != nil {
+	if err := r.db.QueryRowContext(ctx, qry, patientID, doctorID, doctorName, scheduledAt, preferredMode, requestedAmount, requestedCurrency, notes, aiUrgencyLevel, aiTriageScore, aiSpecialty).Scan(&it.ID, &it.PatientID, &doctorIDOut, &it.DoctorName, &it.ScheduledAt, &it.PreferredMode, &it.RequestedAmount, &it.RequestedCurrency, &it.Status, &it.ConnectionStatus, &notesOut, &it.CreatedAt, &it.UpdatedAt); err != nil {
 		return nil, err
 	}
 	if doctorIDOut.Valid {
@@ -429,11 +621,21 @@ func (r *Repository) CreateTelemedicineSession(ctx context.Context, patientID st
 }
 
 func (r *Repository) GetTelemedicineSessionByID(ctx context.Context, id string) (*model.TelemedicineSession, error) {
-	qry := `SELECT id, patient_id, doctor_id, doctor_name, scheduled_at, preferred_mode, requested_amount, requested_currency, status, connection_status, notes, created_at, updated_at FROM patient_telemedicine_sessions WHERE id=$1`
+	qry := `
+		SELECT 
+			id, patient_id, doctor_id, doctor_name, scheduled_at, preferred_mode, 
+			requested_amount, requested_currency, status, connection_status, notes, 
+			ai_urgency_level, ai_triage_score, ai_specialty,
+			created_at, updated_at 
+		FROM patient_telemedicine_sessions WHERE id=$1
+	`
 	var it model.TelemedicineSession
 	var doctorID sql.NullString
 	var notes sql.NullString
-	if err := r.db.QueryRowContext(ctx, qry, id).Scan(&it.ID, &it.PatientID, &doctorID, &it.DoctorName, &it.ScheduledAt, &it.PreferredMode, &it.RequestedAmount, &it.RequestedCurrency, &it.Status, &it.ConnectionStatus, &notes, &it.CreatedAt, &it.UpdatedAt); err != nil {
+	var aiUrgencyLevel sql.NullString
+	var aiTriageScore sql.NullInt64
+	var aiSpecialty sql.NullString
+	if err := r.db.QueryRowContext(ctx, qry, id).Scan(&it.ID, &it.PatientID, &doctorID, &it.DoctorName, &it.ScheduledAt, &it.PreferredMode, &it.RequestedAmount, &it.RequestedCurrency, &it.Status, &it.ConnectionStatus, &notes, &aiUrgencyLevel, &aiTriageScore, &aiSpecialty, &it.CreatedAt, &it.UpdatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
@@ -444,8 +646,20 @@ func (r *Repository) GetTelemedicineSessionByID(ctx context.Context, id string) 
 		it.DoctorID = &value
 	}
 	if notes.Valid {
-		value := notes.String
-		it.Notes = &value
+		v := notes.String
+		it.Notes = &v
+	}
+	if aiUrgencyLevel.Valid {
+		v := aiUrgencyLevel.String
+		it.AIUrgencyLevel = &v
+	}
+	if aiTriageScore.Valid {
+		v := int(aiTriageScore.Int64)
+		it.AITriageScore = &v
+	}
+	if aiSpecialty.Valid {
+		v := aiSpecialty.String
+		it.AISpecialty = &v
 	}
 	return &it, nil
 }
@@ -467,6 +681,9 @@ func (r *Repository) ListTelemedicineQueueByOrganization(ctx context.Context, or
 			s.status,
 			s.connection_status,
 			s.notes,
+			s.ai_urgency_level,
+			s.ai_triage_score,
+			s.ai_specialty,
 			s.created_at,
 			s.updated_at
 		FROM patient_telemedicine_sessions s
@@ -490,7 +707,10 @@ func (r *Repository) ListTelemedicineQueueByOrganization(ctx context.Context, or
 		var it model.TelemedicineSession
 		var doctorID sql.NullString
 		var notes sql.NullString
-		if err := rows.Scan(&it.ID, &it.PatientID, &doctorID, &it.DoctorName, &it.ScheduledAt, &it.PreferredMode, &it.RequestedAmount, &it.RequestedCurrency, &it.Status, &it.ConnectionStatus, &notes, &it.CreatedAt, &it.UpdatedAt); err != nil {
+		var aiUrgencyLevel sql.NullString
+		var aiTriageScore sql.NullInt64
+		var aiSpecialty sql.NullString
+		if err := rows.Scan(&it.ID, &it.PatientID, &doctorID, &it.DoctorName, &it.ScheduledAt, &it.PreferredMode, &it.RequestedAmount, &it.RequestedCurrency, &it.Status, &it.ConnectionStatus, &notes, &aiUrgencyLevel, &aiTriageScore, &aiSpecialty, &it.CreatedAt, &it.UpdatedAt); err != nil {
 			return nil, err
 		}
 		if doctorID.Valid {
@@ -500,6 +720,18 @@ func (r *Repository) ListTelemedicineQueueByOrganization(ctx context.Context, or
 		if notes.Valid {
 			value := notes.String
 			it.Notes = &value
+		}
+		if aiUrgencyLevel.Valid {
+			v := aiUrgencyLevel.String
+			it.AIUrgencyLevel = &v
+		}
+		if aiTriageScore.Valid {
+			v := int(aiTriageScore.Int64)
+			it.AITriageScore = &v
+		}
+		if aiSpecialty.Valid {
+			v := aiSpecialty.String
+			it.AISpecialty = &v
 		}
 		out = append(out, &it)
 	}
@@ -585,6 +817,71 @@ func (r *Repository) MarkTelemedicineSessionInProgress(ctx context.Context, sess
 		it.Notes = &value
 	}
 	return &it, nil
+}
+
+// scanSession is a small helper that scans the standard 12-column session result set.
+func scanSession(row *sql.Row) (*model.TelemedicineSession, error) {
+	var it model.TelemedicineSession
+	var doctorID sql.NullString
+	var notes sql.NullString
+	if err := row.Scan(
+		&it.ID, &it.PatientID, &doctorID, &it.DoctorName,
+		&it.ScheduledAt, &it.PreferredMode,
+		&it.RequestedAmount, &it.RequestedCurrency,
+		&it.Status, &it.ConnectionStatus,
+		&notes, &it.CreatedAt, &it.UpdatedAt,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	if doctorID.Valid {
+		v := doctorID.String
+		it.DoctorID = &v
+	}
+	if notes.Valid {
+		v := notes.String
+		it.Notes = &v
+	}
+	return &it, nil
+}
+
+// EndTelemedicineSession sets status=completed, connection_status=ended, ended_at=NOW().
+func (r *Repository) EndTelemedicineSession(ctx context.Context, sessionID string) (*model.TelemedicineSession, error) {
+	qry := `
+		UPDATE patient_telemedicine_sessions
+		SET
+			status            = 'completed',
+			connection_status = 'ended',
+			ended_at          = NOW(),
+			updated_at        = NOW()
+		WHERE id = $1
+		  AND status NOT IN ('cancelled', 'completed')
+		RETURNING id, patient_id, doctor_id, doctor_name, scheduled_at,
+		          preferred_mode, requested_amount, requested_currency,
+		          status, connection_status, notes, created_at, updated_at
+	`
+	return scanSession(r.db.QueryRowContext(ctx, qry, sessionID))
+}
+
+// CancelTelemedicineSession sets status=cancelled for a pending session owned by patientID.
+func (r *Repository) CancelTelemedicineSession(ctx context.Context, sessionID, patientID string) (*model.TelemedicineSession, error) {
+	qry := `
+		UPDATE patient_telemedicine_sessions
+		SET
+			status            = 'cancelled',
+			connection_status = 'ended',
+			ended_at          = NOW(),
+			updated_at        = NOW()
+		WHERE id         = $1
+		  AND patient_id = $2
+		  AND status     = 'pending'
+		RETURNING id, patient_id, doctor_id, doctor_name, scheduled_at,
+		          preferred_mode, requested_amount, requested_currency,
+		          status, connection_status, notes, created_at, updated_at
+	`
+	return scanSession(r.db.QueryRowContext(ctx, qry, sessionID, patientID))
 }
 
 func (r *Repository) CreateTelemedicineArtifact(ctx context.Context, sessionID, patientID string, doctorID, recordingURL, transcriptURL *string, summary, finalDiagnosis string, symptoms []string, followUpNeeded bool) (*model.TelemedicineSessionArtifact, error) {
@@ -703,7 +1000,10 @@ func (r *Repository) ListChronicCareByPatient(ctx context.Context, patientID str
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
-	qry := `SELECT id, patient_id, condition_name, care_plan, severity_level, risk_score, last_review_at, created_at, updated_at FROM patient_chronic_care WHERE patient_id=$1 ORDER BY created_at DESC LIMIT $2`
+	qry := `SELECT id, COALESCE(patient_id::text,''), COALESCE(organization_id::text,''), assigned_provider_id,
+			condition_name, icd_code, care_plan, COALESCE(alert_thresholds,'{}'), monitoring_frequency,
+			severity_level, risk_score, COALESCE(status,'active'), last_review_at, created_at, updated_at
+			FROM patient_chronic_care WHERE patient_id=$1::uuid ORDER BY created_at DESC LIMIT $2`
 	rows, err := r.db.QueryContext(ctx, qry, patientID, limit)
 	if err != nil {
 		return nil, err
@@ -713,23 +1013,38 @@ func (r *Repository) ListChronicCareByPatient(ctx context.Context, patientID str
 	for rows.Next() {
 		var it model.ChronicCareRecord
 		var lastReview sql.NullTime
-		if err := rows.Scan(&it.ID, &it.PatientID, &it.ConditionName, &it.CarePlan, &it.SeverityLevel, &it.RiskScore, &lastReview, &it.CreatedAt, &it.UpdatedAt); err != nil {
+		var providerID sql.NullString
+		var icdCode sql.NullString
+		var thresholdsRaw []byte
+		if err := rows.Scan(
+			&it.ID, &it.PatientID, &it.OrganizationID, &providerID,
+			&it.ConditionName, &icdCode, &it.CarePlan, &thresholdsRaw, &it.MonitoringFrequency,
+			&it.SeverityLevel, &it.RiskScore, &it.Status, &lastReview, &it.CreatedAt, &it.UpdatedAt,
+		); err != nil {
 			return nil, err
 		}
-		if lastReview.Valid {
-			t := lastReview.Time
-			it.LastReviewAt = &t
+		if lastReview.Valid { t := lastReview.Time; it.LastReviewAt = &t }
+		if providerID.Valid { it.AssignedProviderID = &providerID.String }
+		if icdCode.Valid { it.ICDCode = &icdCode.String }
+		if len(thresholdsRaw) > 0 {
+			_ = json.Unmarshal(thresholdsRaw, &it.AlertThresholds)
 		}
 		out = append(out, &it)
 	}
 	return out, rows.Err()
 }
 
+
 func (r *Repository) ListPregnancyCareByPatient(ctx context.Context, patientID string, limit int) ([]*model.PregnancyRecord, error) {
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
-	qry := `SELECT id, patient_id, trimester, expected_delivery_date, high_risk, notes, severity_level, created_at, updated_at FROM patient_pregnancy_care WHERE patient_id=$1 ORDER BY created_at DESC LIMIT $2`
+	qry := `SELECT id, COALESCE(patient_id::text,''), COALESCE(organization_id::text,''), assigned_provider_id,
+			lmp, expected_delivery_date, gestational_age_weeks, trimester,
+			COALESCE(gravidity,1), COALESCE(parity,0), high_risk,
+			COALESCE(risk_factors,'[]'), COALESCE(existing_conditions,'[]'), COALESCE(monitoring_requirements,'{}'),
+			notes, severity_level, COALESCE(status,'active'), closed_at, created_at, updated_at
+			FROM patient_pregnancy_care WHERE patient_id=$1::uuid ORDER BY created_at DESC LIMIT $2`
 	rows, err := r.db.QueryContext(ctx, qry, patientID, limit)
 	if err != nil {
 		return nil, err
@@ -738,14 +1053,180 @@ func (r *Repository) ListPregnancyCareByPatient(ctx context.Context, patientID s
 	out := make([]*model.PregnancyRecord, 0)
 	for rows.Next() {
 		var it model.PregnancyRecord
-		var edd sql.NullTime
-		if err := rows.Scan(&it.ID, &it.PatientID, &it.Trimester, &edd, &it.HighRisk, &it.Notes, &it.SeverityLevel, &it.CreatedAt, &it.UpdatedAt); err != nil {
+		var lmp, edd, closedAt sql.NullTime
+		var providerID sql.NullString
+		var gestWeeks sql.NullInt32
+		var rfRaw, ecRaw, mrRaw []byte
+		if err := rows.Scan(
+			&it.ID, &it.PatientID, &it.OrganizationID, &providerID,
+			&lmp, &edd, &gestWeeks, &it.Trimester,
+			&it.Gravidity, &it.Parity, &it.HighRisk,
+			&rfRaw, &ecRaw, &mrRaw,
+			&it.Notes, &it.SeverityLevel, &it.Status, &closedAt, &it.CreatedAt, &it.UpdatedAt,
+		); err != nil {
 			return nil, err
 		}
-		if edd.Valid {
-			t := edd.Time
-			it.ExpectedDeliveryDate = &t
-		}
+		if lmp.Valid { t := lmp.Time; it.LMP = &t }
+		if edd.Valid { t := edd.Time; it.ExpectedDeliveryDate = &t }
+		if closedAt.Valid { t := closedAt.Time; it.ClosedAt = &t }
+		if gestWeeks.Valid { w := int(gestWeeks.Int32); it.GestationalAgeWeeks = &w }
+		if providerID.Valid { it.AssignedProviderID = &providerID.String }
+		_ = json.Unmarshal(rfRaw, &it.RiskFactors)
+		_ = json.Unmarshal(ecRaw, &it.ExistingConditions)
+		_ = json.Unmarshal(mrRaw, &it.MonitoringRequirements)
+		out = append(out, &it)
+	}
+	return out, rows.Err()
+}
+
+// ── Org-side: Create / Update / List pregnancy episodes ──────────────────────
+
+func (r *Repository) OrgCreatePregnancyEpisode(ctx context.Context, params map[string]any) (*model.PregnancyRecord, error) {
+	qry := `INSERT INTO patient_pregnancy_care
+		(tenant_id, patient_id, organization_id, assigned_provider_id, lmp, expected_delivery_date,
+		 gestational_age_weeks, trimester, gravidity, parity, high_risk,
+		 risk_factors, existing_conditions, monitoring_requirements, notes, severity_level, status, created_by)
+		VALUES ((SELECT id FROM tenants WHERE slug='default'), $1::uuid, $2::uuid, $3,
+		        $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13::jsonb, $14, $15, 'active', $16)
+		RETURNING id, COALESCE(patient_id::text,''), COALESCE(organization_id::text,''), assigned_provider_id,
+		          lmp, expected_delivery_date, gestational_age_weeks, trimester,
+		          COALESCE(gravidity,1), COALESCE(parity,0), high_risk,
+		          COALESCE(risk_factors,'[]'), COALESCE(existing_conditions,'[]'), COALESCE(monitoring_requirements,'{}'),
+		          notes, severity_level, COALESCE(status,'active'), closed_at, created_at, updated_at`
+
+	rfJSON, _ := json.Marshal(params["risk_factors"])
+	ecJSON, _ := json.Marshal(params["existing_conditions"])
+	mrJSON, _ := json.Marshal(params["monitoring_requirements"])
+
+	var it model.PregnancyRecord
+	var lmp, edd, closedAt sql.NullTime
+	var providerID sql.NullString
+	var gestWeeks sql.NullInt32
+	var rfRaw, ecRaw, mrRaw []byte
+
+	err := r.db.QueryRowContext(ctx, qry,
+		params["patient_id"], params["organization_id"], params["assigned_provider_id"],
+		params["lmp"], params["expected_delivery_date"], params["gestational_age_weeks"],
+		params["trimester"], params["gravidity"], params["parity"], params["high_risk"],
+		string(rfJSON), string(ecJSON), string(mrJSON), params["notes"], params["severity_level"], params["created_by"],
+	).Scan(
+		&it.ID, &it.PatientID, &it.OrganizationID, &providerID,
+		&lmp, &edd, &gestWeeks, &it.Trimester,
+		&it.Gravidity, &it.Parity, &it.HighRisk,
+		&rfRaw, &ecRaw, &mrRaw,
+		&it.Notes, &it.SeverityLevel, &it.Status, &closedAt, &it.CreatedAt, &it.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if lmp.Valid { t := lmp.Time; it.LMP = &t }
+	if edd.Valid { t := edd.Time; it.ExpectedDeliveryDate = &t }
+	if closedAt.Valid { t := closedAt.Time; it.ClosedAt = &t }
+	if gestWeeks.Valid { w := int(gestWeeks.Int32); it.GestationalAgeWeeks = &w }
+	if providerID.Valid { it.AssignedProviderID = &providerID.String }
+	_ = json.Unmarshal(rfRaw, &it.RiskFactors)
+	_ = json.Unmarshal(ecRaw, &it.ExistingConditions)
+	_ = json.Unmarshal(mrRaw, &it.MonitoringRequirements)
+	return &it, nil
+}
+
+func (r *Repository) OrgListPregnancyEpisodes(ctx context.Context, orgID string, limit int) ([]*model.PregnancyRecord, error) {
+	if limit <= 0 || limit > 200 { limit = 100 }
+	qry := `SELECT id, COALESCE(patient_id::text,''), COALESCE(organization_id::text,''), assigned_provider_id,
+			lmp, expected_delivery_date, gestational_age_weeks, trimester,
+			COALESCE(gravidity,1), COALESCE(parity,0), high_risk,
+			COALESCE(risk_factors,'[]'), COALESCE(existing_conditions,'[]'), COALESCE(monitoring_requirements,'{}'),
+			notes, severity_level, COALESCE(status,'active'), closed_at, created_at, updated_at
+			FROM patient_pregnancy_care WHERE organization_id=$1::uuid ORDER BY created_at DESC LIMIT $2`
+	rows, err := r.db.QueryContext(ctx, qry, orgID, limit)
+	if err != nil { return nil, err }
+	defer rows.Close()
+	out := make([]*model.PregnancyRecord, 0)
+	for rows.Next() {
+		var it model.PregnancyRecord
+		var lmp, edd, closedAt sql.NullTime
+		var providerID sql.NullString
+		var gestWeeks sql.NullInt32
+		var rfRaw, ecRaw, mrRaw []byte
+		if err := rows.Scan(
+			&it.ID, &it.PatientID, &it.OrganizationID, &providerID,
+			&lmp, &edd, &gestWeeks, &it.Trimester,
+			&it.Gravidity, &it.Parity, &it.HighRisk,
+			&rfRaw, &ecRaw, &mrRaw,
+			&it.Notes, &it.SeverityLevel, &it.Status, &closedAt, &it.CreatedAt, &it.UpdatedAt,
+		); err != nil { return nil, err }
+		if lmp.Valid { t := lmp.Time; it.LMP = &t }
+		if edd.Valid { t := edd.Time; it.ExpectedDeliveryDate = &t }
+		if closedAt.Valid { t := closedAt.Time; it.ClosedAt = &t }
+		if gestWeeks.Valid { w := int(gestWeeks.Int32); it.GestationalAgeWeeks = &w }
+		if providerID.Valid { it.AssignedProviderID = &providerID.String }
+		_ = json.Unmarshal(rfRaw, &it.RiskFactors)
+		_ = json.Unmarshal(ecRaw, &it.ExistingConditions)
+		_ = json.Unmarshal(mrRaw, &it.MonitoringRequirements)
+		out = append(out, &it)
+	}
+	return out, rows.Err()
+}
+
+// ── Org-side: Create / List chronic enrollments ──────────────────────────────
+
+func (r *Repository) OrgCreateChronicEnrollment(ctx context.Context, params map[string]any) (*model.ChronicCareRecord, error) {
+	qry := `INSERT INTO patient_chronic_care
+		(tenant_id, patient_id, organization_id, assigned_provider_id, condition_name, icd_code,
+		 care_plan, alert_thresholds, monitoring_frequency, severity_level, risk_score, status, created_by)
+		VALUES ((SELECT id FROM tenants WHERE slug='default'), $1::uuid, $2::uuid, $3, $4, $5,
+		        $6, $7::jsonb, $8, $9, $10, 'active', $11)
+		RETURNING id, COALESCE(patient_id::text,''), COALESCE(organization_id::text,''), assigned_provider_id,
+		          condition_name, icd_code, care_plan, COALESCE(alert_thresholds,'{}'), monitoring_frequency,
+		          severity_level, risk_score, COALESCE(status,'active'), last_review_at, created_at, updated_at`
+
+	thJSON, _ := json.Marshal(params["alert_thresholds"])
+	var it model.ChronicCareRecord
+	var providerID, icdCode sql.NullString
+	var lastReview sql.NullTime
+	var thresholdsRaw []byte
+
+	err := r.db.QueryRowContext(ctx, qry,
+		params["patient_id"], params["organization_id"], params["assigned_provider_id"],
+		params["condition_name"], params["icd_code"], params["care_plan"],
+		string(thJSON), params["monitoring_frequency"], params["severity_level"], params["risk_score"], params["created_by"],
+	).Scan(
+		&it.ID, &it.PatientID, &it.OrganizationID, &providerID,
+		&it.ConditionName, &icdCode, &it.CarePlan, &thresholdsRaw, &it.MonitoringFrequency,
+		&it.SeverityLevel, &it.RiskScore, &it.Status, &lastReview, &it.CreatedAt, &it.UpdatedAt,
+	)
+	if err != nil { return nil, err }
+	if lastReview.Valid { t := lastReview.Time; it.LastReviewAt = &t }
+	if providerID.Valid { it.AssignedProviderID = &providerID.String }
+	if icdCode.Valid { it.ICDCode = &icdCode.String }
+	if len(thresholdsRaw) > 0 { _ = json.Unmarshal(thresholdsRaw, &it.AlertThresholds) }
+	return &it, nil
+}
+
+func (r *Repository) OrgListChronicEnrollments(ctx context.Context, orgID string, limit int) ([]*model.ChronicCareRecord, error) {
+	if limit <= 0 || limit > 200 { limit = 100 }
+	qry := `SELECT id, COALESCE(patient_id::text,''), COALESCE(organization_id::text,''), assigned_provider_id,
+			condition_name, icd_code, care_plan, COALESCE(alert_thresholds,'{}'), monitoring_frequency,
+			severity_level, risk_score, COALESCE(status,'active'), last_review_at, created_at, updated_at
+			FROM patient_chronic_care WHERE organization_id=$1::uuid ORDER BY created_at DESC LIMIT $2`
+	rows, err := r.db.QueryContext(ctx, qry, orgID, limit)
+	if err != nil { return nil, err }
+	defer rows.Close()
+	out := make([]*model.ChronicCareRecord, 0)
+	for rows.Next() {
+		var it model.ChronicCareRecord
+		var lastReview sql.NullTime
+		var providerID, icdCode sql.NullString
+		var thresholdsRaw []byte
+		if err := rows.Scan(
+			&it.ID, &it.PatientID, &it.OrganizationID, &providerID,
+			&it.ConditionName, &icdCode, &it.CarePlan, &thresholdsRaw, &it.MonitoringFrequency,
+			&it.SeverityLevel, &it.RiskScore, &it.Status, &lastReview, &it.CreatedAt, &it.UpdatedAt,
+		); err != nil { return nil, err }
+		if lastReview.Valid { t := lastReview.Time; it.LastReviewAt = &t }
+		if providerID.Valid { it.AssignedProviderID = &providerID.String }
+		if icdCode.Valid { it.ICDCode = &icdCode.String }
+		if len(thresholdsRaw) > 0 { _ = json.Unmarshal(thresholdsRaw, &it.AlertThresholds) }
 		out = append(out, &it)
 	}
 	return out, rows.Err()

@@ -190,6 +190,8 @@ export default function StaffManagementPage() {
           professional_title: form.professional_title,
           license_number: form.license_number,
           active: form.active,
+          staff_template_key: form.staff_template_key,
+          role: getRoleFromTemplate(form.staff_template_key),
         });
         setSuccess("Staff member updated successfully");
       } else {
@@ -520,7 +522,7 @@ export default function StaffManagementPage() {
                   value={getRoleFromTemplate(form.staff_template_key)}
                   className="w-full h-9 rounded-lg border border-border bg-background px-3 text-sm disabled:opacity-50"
                 />
-              </div>
+            </div>
             )}
 
             {/* Professional Title */}

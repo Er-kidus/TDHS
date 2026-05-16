@@ -97,6 +97,8 @@ export function isPathAllowedForRole(pathname: string, role: OrgRole): boolean {
       "/dashboard/staff-management",
       "/dashboard/inventory",
       "/dashboard/scheduling",
+      "/dashboard/community",
+      "/patients",
       "/analytics",
     ];
     return adminPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
@@ -109,7 +111,9 @@ export function isPathAllowedForRole(pathname: string, role: OrgRole): boolean {
       pathname === "/dashboard/telemedicine" ||
       pathname.startsWith("/dashboard/telemedicine/") ||
       pathname === "/appointments" ||
-      pathname.startsWith("/appointments/")
+      pathname.startsWith("/appointments/") ||
+      pathname === "/dashboard/care/pregnancy" ||
+      pathname === "/dashboard/care/chronic"
     );
   }
 
@@ -120,7 +124,11 @@ export function isPathAllowedForRole(pathname: string, role: OrgRole): boolean {
       pathname === "/dashboard/telemedicine" ||
       pathname.startsWith("/dashboard/telemedicine/") ||
       pathname === "/appointments" ||
-      pathname.startsWith("/appointments/")
+      pathname.startsWith("/appointments/") ||
+      pathname === "/dashboard/care/pregnancy" ||
+      pathname === "/dashboard/care/chronic" ||
+      pathname === "/dashboard/community" ||
+      pathname.startsWith("/dashboard/community/")
     );
   }
 
@@ -163,8 +171,11 @@ export function navigationForRole(role: OrgRole, mode?: OrgNavMode): Array<{ hre
       { href: "/dashboard/admin", label: "Organization Control" },
       { href: "/dashboard/service-control", label: "Operations" },
       { href: "/dashboard/staff-management", label: "Staff Management" },
+      { href: "/dashboard/community", label: "Community Health" },
       { href: "/dashboard/inventory", label: "Inventory" },
       { href: "/dashboard/scheduling", label: "Scheduling" },
+      { href: "/dashboard/telemedicine/analytics", label: "Telemedicine Analytics" },
+      { href: "/dashboard/telemedicine/ai-overview", label: "AI Triage Overview" },
       { href: "/patients", label: "Patients" },
       { href: "/analytics", label: "Analytics" },
       { href: "/settings", label: "Settings" },
@@ -177,9 +188,12 @@ export function navigationForRole(role: OrgRole, mode?: OrgNavMode): Array<{ hre
       { href: "/dashboard/doctor/queue", label: "Queue", modes: ["organization"] },
       { href: "/dashboard/doctor/prescriptions", label: "Prescription", modes: ["organization"] },
       { href: "/dashboard/doctor/labs", label: "Lab", modes: ["organization"] },
+      { href: "/dashboard/care/pregnancy", label: "Pregnancy Registry", modes: ["organization"] },
+      { href: "/dashboard/care/chronic", label: "Chronic Care", modes: ["organization"] },
       { href: "/dashboard/telemedicine", label: "Telemedicine Home", modes: ["telemedicine"] },
       { href: "/dashboard/telemedicine/queue", label: "Telemedicine Queue", modes: ["telemedicine"] },
       { href: "/dashboard/telemedicine/profile", label: "My Telemedicine Profile", modes: ["telemedicine"] },
+      { href: "/dashboard/telemedicine/analytics", label: "Telemedicine Analytics", modes: ["telemedicine"] },
       { href: "/patients", label: "Patients" },
       { href: "/appointments", label: "Appointments" },
     ], mode);
@@ -191,9 +205,13 @@ export function navigationForRole(role: OrgRole, mode?: OrgNavMode): Array<{ hre
       { href: "/dashboard/nurse/triage", label: "Triage Board", modes: ["organization"] },
       { href: "/dashboard/nurse/triage/history", label: "Triage History", modes: ["organization"] },
       { href: "/dashboard/nurse/triage/protocols", label: "Triage Protocols", modes: ["organization"] },
+      { href: "/dashboard/care/pregnancy", label: "Pregnancy Registry", modes: ["organization"] },
+      { href: "/dashboard/care/chronic", label: "Chronic Care", modes: ["organization"] },
+      { href: "/dashboard/community", label: "Community Field Work", modes: ["organization"] },
       { href: "/dashboard/telemedicine", label: "Telemedicine Home", modes: ["telemedicine"] },
       { href: "/dashboard/telemedicine/queue", label: "Telemedicine Queue", modes: ["telemedicine"] },
       { href: "/dashboard/telemedicine/profile", label: "My Telemedicine Profile", modes: ["telemedicine"] },
+      { href: "/dashboard/telemedicine/analytics", label: "Telemedicine Analytics", modes: ["telemedicine"] },
       { href: "/patients", label: "Patients" },
       { href: "/appointments", label: "Appointments" },
       { href: "/settings", label: "Settings" },
@@ -203,6 +221,7 @@ export function navigationForRole(role: OrgRole, mode?: OrgNavMode): Array<{ hre
   if (role === "pharmacist") {
     return filterNavigationByMode([
       { href: "/dashboard/pharmacy", label: "Pharmacy Dashboard", modes: ["pharmacy"] },
+      { href: "/dashboard/pharmacy/inventory", label: "Inventory Management", modes: ["pharmacy"] },
       { href: "/patients", label: "Patients" },
       { href: "/settings", label: "Settings" },
     ], mode);

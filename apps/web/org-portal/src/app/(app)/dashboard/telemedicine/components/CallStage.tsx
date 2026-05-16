@@ -35,7 +35,7 @@ export function CallStage({
         </span>
       </div>
 
-      <div className="relative flex h-full min-h-0 flex-1 items-stretch justify-stretch">
+      <div className="relative min-h-0 flex-1 overflow-hidden">
         {roomMode === "audio" ? (
           <div className="flex h-full w-full items-center justify-center px-6 text-center text-sm text-slate-200">
             <div className="space-y-3">

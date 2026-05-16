@@ -17,6 +17,7 @@ import {
 
 import { DoctorWorkspaceShell } from "./DoctorWorkspaceShell";
 import { useDoctorWorkspace } from "./useDoctorWorkspace";
+import { ClinicalKnowledgeBaseAi } from "@/components/ai/ClinicalKnowledgeBaseAi";
 
 export function DoctorOverviewClient() {
   const router = useRouter();
@@ -259,6 +260,7 @@ export function DoctorOverviewClient() {
             </div>
           </section>
 
+          <ClinicalKnowledgeBaseAi />
          
         </aside>
       </div>

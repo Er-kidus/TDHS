@@ -36,15 +36,32 @@ export function normalizeLiveKitServerUrl(
   try {
     const parsed = new URL(rawUrl);
 
-    const isLoopback =
+    // Replace ANY local/private IP (including 10.x, 192.168.x, 172.16-31.x, loopback)
+    // with the browser's actual hostname. This makes the URL correct regardless of
+    // which NIC the dev machine is using or whether the configured IP has changed.
+    const isLocalOrPrivate =
       parsed.hostname === "127.0.0.1" ||
-      parsed.hostname === "localhost";
+      parsed.hostname === "localhost" ||
+      isPrivateOrLoopbackHost(parsed.hostname);
 
-    if (
-      isLoopback &&
-      typeof window !== "undefined"
-    ) {
+    if (isLocalOrPrivate && typeof window !== "undefined") {
+      const isNgrok = window.location.hostname.includes("ngrok");
       parsed.hostname = window.location.hostname;
+      
+      if (isNgrok) {
+        parsed.protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        parsed.port = window.location.port;
+        let path = parsed.pathname === '/' ? '' : parsed.pathname;
+        if (!path.startsWith('/livekit')) {
+          path = '/livekit' + path;
+        }
+        if (!path.endsWith('/')) {
+          path += '/';
+        }
+        parsed.pathname = path;
+      } else if (window.location.protocol === "https:") {
+        parsed.protocol = "wss:";
+      }
     }
 
     return parsed.toString();
@@ -60,6 +77,10 @@ export function stripLiveKitProxyPath(
 
   try {
     const parsed = new URL(rawUrl);
+
+    if (typeof window !== "undefined" && window.location.hostname.includes("ngrok")) {
+      return parsed.toString();
+    }
 
     if (
       parsed.pathname.startsWith("/livekit")

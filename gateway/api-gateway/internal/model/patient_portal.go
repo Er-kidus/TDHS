@@ -16,7 +16,32 @@ type Doctor struct {
 	ConsultationCurrency string     `json:"consultation_currency"`
 	TelemedicineModes    []string   `json:"telemedicine_modes"`
 	AvailableAt          *time.Time `json:"available_at,omitempty"`
+	SubSpecialty         *string    `json:"sub_specialty,omitempty"`
+	Languages            []string   `json:"languages,omitempty"`
+	ConsultationModes    []string   `json:"consultation_modes,omitempty"`
+	EmergencySupport     bool       `json:"emergency_support,omitempty"`
+	CurrentSessions      int        `json:"current_sessions,omitempty"`
+	SessionCapacity      int        `json:"session_capacity,omitempty"`
 }
+
+type TelemedicineProfileUpdate struct {
+	TelemedicineEnabled   *bool
+	TelemedicineSpecialty *string
+	TelemedicineRate      *float64
+	TelemedicineCurrency  *string
+	TelemedicineModes     *[]string
+	SubSpecialty          *string
+	YearsExperience       *int
+	LanguagesSpoken       *[]string
+	OnlineStatus          *string
+	SessionCapacity       *int
+	Certifications        *[]string
+	AreasOfExpertise      *[]string
+	EmergencySupport      *bool
+	AvailabilitySchedule  map[string]any
+	ProfileCompleteness   *int
+}
+
 
 type Prescription struct {
 	Base
@@ -91,6 +116,9 @@ type TelemedicineSession struct {
 	Status            string    `json:"status"`
 	ConnectionStatus  string    `json:"connection_status"`
 	Notes             *string   `json:"notes,omitempty"`
+	AIUrgencyLevel    *string   `json:"ai_urgency_level,omitempty"`
+	AITriageScore     *int      `json:"ai_triage_score,omitempty"`
+	AISpecialty       *string   `json:"ai_specialty,omitempty"`
 }
 
 type PharmacyMedication struct {
@@ -126,22 +154,39 @@ type PharmacyOrder struct {
 
 type ChronicCareRecord struct {
 	Base
-	PatientID     string     `json:"patient_id"`
-	ConditionName string     `json:"condition_name"`
-	CarePlan      string     `json:"care_plan"`
-	SeverityLevel string     `json:"severity_level"`
-	RiskScore     float64    `json:"risk_score"`
-	LastReviewAt  *time.Time `json:"last_review_at,omitempty"`
+	PatientID            string         `json:"patient_id"`
+	OrganizationID       string         `json:"organization_id"`
+	AssignedProviderID   *string        `json:"assigned_provider_id,omitempty"`
+	ConditionName        string         `json:"condition_name"`
+	ICDCode              *string        `json:"icd_code,omitempty"`
+	CarePlan             string         `json:"care_plan"`
+	AlertThresholds      map[string]any `json:"alert_thresholds"`
+	MonitoringFrequency  string         `json:"monitoring_frequency"`
+	SeverityLevel        string         `json:"severity_level"`
+	RiskScore            float64        `json:"risk_score"`
+	Status               string         `json:"status"`
+	LastReviewAt         *time.Time     `json:"last_review_at,omitempty"`
 }
 
 type PregnancyRecord struct {
 	Base
-	PatientID            string     `json:"patient_id"`
-	Trimester            int        `json:"trimester"`
-	ExpectedDeliveryDate *time.Time `json:"expected_delivery_date,omitempty"`
-	HighRisk             bool       `json:"high_risk"`
-	Notes                string     `json:"notes"`
-	SeverityLevel        string     `json:"severity_level"`
+	PatientID              string         `json:"patient_id"`
+	OrganizationID         string         `json:"organization_id"`
+	AssignedProviderID     *string        `json:"assigned_provider_id,omitempty"`
+	LMP                    *time.Time     `json:"lmp,omitempty"`
+	ExpectedDeliveryDate   *time.Time     `json:"expected_delivery_date,omitempty"`
+	GestationalAgeWeeks    *int           `json:"gestational_age_weeks,omitempty"`
+	Trimester              int            `json:"trimester"`
+	Gravidity              int            `json:"gravidity"`
+	Parity                 int            `json:"parity"`
+	HighRisk               bool           `json:"high_risk"`
+	RiskFactors            []string       `json:"risk_factors"`
+	ExistingConditions     []string       `json:"existing_conditions"`
+	MonitoringRequirements map[string]any `json:"monitoring_requirements"`
+	Notes                  string         `json:"notes"`
+	SeverityLevel          string         `json:"severity_level"`
+	Status                 string         `json:"status"`
+	ClosedAt               *time.Time     `json:"closed_at,omitempty"`
 }
 
 type RecurrentMedicationRecord struct {
@@ -205,4 +250,53 @@ type TelemedicineTranscriptLine struct {
 	Source     string    `json:"source"`
 	Content    string    `json:"content"`
 	OccurredAt time.Time `json:"occurred_at"`
+}
+
+type VisitSummary struct {
+	ID            string    `json:"id"`
+	AppointmentID string    `json:"appointment_id"`
+	PatientID     string    `json:"patient_id"`
+	Summary       string    `json:"summary"`
+	Disposition   string    `json:"disposition"`
+	ServiceType   *string   `json:"service_type,omitempty"`
+	FacilityName  *string   `json:"facility_name,omitempty"`
+	ScheduledAt   *string   `json:"scheduled_at,omitempty"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+type LabOrder struct {
+	ID                   string     `json:"id"`
+	AppointmentID        string     `json:"appointment_id"`
+	PatientID            string     `json:"patient_id"`
+	PatientName          string     `json:"patient_name"`
+	OrderID              string     `json:"order_id"`
+	ServiceArea          string     `json:"service_area"`
+	TestName             string     `json:"test_name"`
+	Indication           *string    `json:"indication,omitempty"`
+	Priority             string     `json:"priority"`
+	Status               string     `json:"status"`
+	VerificationStatus   string     `json:"verification_status"`
+	SampleLabel          *string    `json:"sample_label,omitempty"`
+	ResultValue          *string    `json:"result_value,omitempty"`
+	ResultNotes          *string    `json:"result_notes,omitempty"`
+	ResultEnteredAt      *time.Time `json:"result_entered_at,omitempty"`
+	CriticalAlert        bool       `json:"critical_alert"`
+	AcknowledgedByDoctor bool       `json:"acknowledged_by_doctor"`
+	ConfirmedAt          *time.Time `json:"confirmed_at,omitempty"`
+	CreatedAt            time.Time  `json:"created_at"`
+	UpdatedAt            time.Time  `json:"updated_at"`
+}
+
+type DoctorPrescription struct {
+	ID            string    `json:"id"`
+	AppointmentID string    `json:"appointment_id"`
+	PatientID     string    `json:"patient_id"`
+	Medication    string    `json:"medication"`
+	Dosage        string    `json:"dosage"`
+	Frequency     string    `json:"frequency"`
+	DurationDays  int       `json:"duration_days"`
+	Instructions  *string   `json:"instructions,omitempty"`
+	Status        string    `json:"status"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }

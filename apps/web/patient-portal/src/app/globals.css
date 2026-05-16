@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 @import "../../node_modules/tailwindcss/index.css";
 
 :root {
@@ -237,5 +238,57 @@ html[data-color-mode="tritanopia"] {
     50% {
       transform: translateY(-4px);
     }
+  }
+}
+
+/* ── Inter Font Application ─────────────────────────────────────── */
+body,
+html {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── AI Interaction Urgency Tokens ──────────────────────────────── */
+:root {
+  --urgency-low:       152 60% 40%;
+  --urgency-moderate:  213 94% 50%;
+  --urgency-urgent:    38 92% 50%;
+  --urgency-emergent:  0 72% 51%;
+
+  --ai-surface: 210 40% 98%;
+  --ai-border:  210 40% 90%;
+  --ai-text:    210 40% 30%;
+}
+
+/* ── Micro-animations ────────────────────────────────────────────── */
+@layer utilities {
+  .animate-pop-in {
+    animation: pop-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  .hover-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px -4px hsl(var(--primary) / 0.2);
+  }
+
+  /* Urgency badge utilities */
+  .urgency-low      { @apply bg-emerald-100 text-emerald-800 border border-emerald-200; }
+  .urgency-moderate { @apply bg-blue-100 text-blue-800 border border-blue-200; }
+  .urgency-urgent   { @apply bg-amber-100 text-amber-800 border border-amber-200; }
+  .urgency-emergent { @apply bg-red-100 text-red-800 border border-red-200; }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
   }
 }

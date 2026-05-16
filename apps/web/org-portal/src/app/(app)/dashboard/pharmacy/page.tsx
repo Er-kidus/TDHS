@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { StatCard } from "@/components/shared/StatCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { AlertTriangle, CheckCircle, Clock, Package, Pill } from "lucide-react";
+import { MedSafeAi } from "@/components/ai/MedSafeAi";
 
 type PrescriptionRecord = {
   id: string;
@@ -106,6 +107,9 @@ export default function PharmacyDashboardPage() {
                   <p className="text-xs text-muted-foreground">{rx.medication} {rx.dosage} | {rx.frequency} | {rx.durationDays} days</p>
                   <p className="text-[10px] text-muted-foreground">Created {new Date(rx.createdAt).toLocaleString()}</p>
                   {rx.instructions ? <p className="text-xs text-muted-foreground mt-1">{rx.instructions}</p> : null}
+                  <div className="mt-3">
+                    <MedSafeAi medication={rx.medication} dosage={rx.dosage} />
+                  </div>
                 </div>
                 <div className="text-right text-xs text-muted-foreground">
                   <p>{rx.appointmentId}</p>

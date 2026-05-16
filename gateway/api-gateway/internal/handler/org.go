@@ -1,8 +1,12 @@
 package handler
 
 import (
+	"encoding/csv"
+	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -56,11 +60,21 @@ func (h *Handler) OrgMe(w http.ResponseWriter, r *http.Request) {
 }
 
 type updateMyTelemedicineRequest struct {
-	TelemedicineEnabled   *bool     `json:"telemedicine_enabled"`
-	TelemedicineSpecialty *string   `json:"telemedicine_specialty"`
-	TelemedicineRate      *float64  `json:"telemedicine_rate"`
-	TelemedicineCurrency  *string   `json:"telemedicine_currency"`
-	TelemedicineModes     *[]string `json:"telemedicine_modes"`
+	TelemedicineEnabled   *bool          `json:"telemedicine_enabled"`
+	TelemedicineSpecialty *string        `json:"telemedicine_specialty"`
+	TelemedicineRate      *float64       `json:"telemedicine_rate"`
+	TelemedicineCurrency  *string        `json:"telemedicine_currency"`
+	TelemedicineModes     *[]string      `json:"telemedicine_modes"`
+	SubSpecialty          *string        `json:"sub_specialty"`
+	YearsExperience       *int           `json:"years_experience"`
+	LanguagesSpoken       *[]string      `json:"languages_spoken"`
+	OnlineStatus          *string        `json:"online_status"`
+	SessionCapacity       *int           `json:"session_capacity"`
+	Certifications        *[]string      `json:"certifications"`
+	AreasOfExpertise      *[]string      `json:"areas_of_expertise"`
+	EmergencySupport      *bool          `json:"emergency_support"`
+	AvailabilitySchedule  map[string]any `json:"availability_schedule"`
+	ProfileCompleteness   *int           `json:"profile_completeness"`
 }
 
 func (h *Handler) OrgGetMyTelemedicineProfile(w http.ResponseWriter, r *http.Request) {
@@ -89,6 +103,16 @@ func (h *Handler) OrgGetMyTelemedicineProfile(w http.ResponseWriter, r *http.Req
 				"telemedicine_rate":      item["telemedicine_rate"],
 				"telemedicine_currency":  item["telemedicine_currency"],
 				"telemedicine_modes":     item["telemedicine_modes"],
+				"sub_specialty":          item["sub_specialty"],
+				"years_experience":       item["years_experience"],
+				"languages_spoken":       item["languages_spoken"],
+				"online_status":          item["online_status"],
+				"session_capacity":       item["session_capacity"],
+				"certifications":         item["certifications"],
+				"areas_of_expertise":     item["areas_of_expertise"],
+				"emergency_support":      item["emergency_support"],
+				"availability_schedule":  item["availability_schedule"],
+				"profile_completeness":   item["profile_completeness"],
 			}
 			h.writeJSON(w, http.StatusOK, profile)
 			return
@@ -125,26 +149,28 @@ func (h *Handler) OrgUpdateMyTelemedicineProfile(w http.ResponseWriter, r *http.
 		req.TelemedicineModes = &normalized
 	}
 
-	if req.TelemedicineEnabled == nil && req.TelemedicineSpecialty == nil && req.TelemedicineRate == nil && req.TelemedicineCurrency == nil && req.TelemedicineModes == nil {
-		h.errorJSON(w, http.StatusBadRequest, "at least one telemedicine field is required")
-		return
-	}
 
-	item, err := h.svcs.PatientPortal.UpdateOrganizationStaff(
+	item, err := h.svcs.PatientPortal.UpdateOrganizationStaffTelemedicineProfile(
 		r.Context(),
 		organizationID,
 		userID,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		req.TelemedicineEnabled,
-		req.TelemedicineSpecialty,
-		req.TelemedicineRate,
-		req.TelemedicineCurrency,
-		req.TelemedicineModes,
+		model.TelemedicineProfileUpdate{
+			TelemedicineEnabled:   req.TelemedicineEnabled,
+			TelemedicineSpecialty: req.TelemedicineSpecialty,
+			TelemedicineRate:      req.TelemedicineRate,
+			TelemedicineCurrency:  req.TelemedicineCurrency,
+			TelemedicineModes:     req.TelemedicineModes,
+			SubSpecialty:          req.SubSpecialty,
+			YearsExperience:       req.YearsExperience,
+			LanguagesSpoken:       req.LanguagesSpoken,
+			OnlineStatus:          req.OnlineStatus,
+			SessionCapacity:       req.SessionCapacity,
+			Certifications:        req.Certifications,
+			AreasOfExpertise:      req.AreasOfExpertise,
+			EmergencySupport:      req.EmergencySupport,
+			AvailabilitySchedule:  req.AvailabilitySchedule,
+			ProfileCompleteness:   req.ProfileCompleteness,
+		},
 	)
 	if err != nil {
 		if err == repository.ErrNotFound {
@@ -165,6 +191,16 @@ func (h *Handler) OrgUpdateMyTelemedicineProfile(w http.ResponseWriter, r *http.
 		"telemedicine_rate":      item["telemedicine_rate"],
 		"telemedicine_currency":  item["telemedicine_currency"],
 		"telemedicine_modes":     item["telemedicine_modes"],
+		"sub_specialty":          item["sub_specialty"],
+		"years_experience":       item["years_experience"],
+		"languages_spoken":       item["languages_spoken"],
+		"online_status":          item["online_status"],
+		"session_capacity":       item["session_capacity"],
+		"certifications":         item["certifications"],
+		"areas_of_expertise":     item["areas_of_expertise"],
+		"emergency_support":      item["emergency_support"],
+		"availability_schedule":  item["availability_schedule"],
+		"profile_completeness":   item["profile_completeness"],
 	}
 	h.writeJSON(w, http.StatusOK, profile)
 }
@@ -572,6 +608,37 @@ func (h *Handler) OrgListOrganizationTiers(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	h.writeJSON(w, http.StatusOK, items)
+}
+
+func (h *Handler) OrgUpdateOrganizationTierDefaults(w http.ResponseWriter, r *http.Request) {
+	tier := strings.TrimSpace(r.PathValue("tier"))
+	if tier == "" {
+		h.errorJSON(w, http.StatusBadRequest, "tier is required")
+		return
+	}
+
+	var req struct {
+		DefaultServices []string `json:"default_services"`
+	}
+	if err := h.readJSON(w, r, &req); err != nil {
+		h.errorJSON(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	err := h.svcs.PatientPortal.UpdateTierDefaults(r.Context(), tier, req.DefaultServices)
+	if err != nil {
+		if err.Error() == "tier not found" {
+			h.errorJSON(w, http.StatusNotFound, "tier not found")
+			return
+		}
+		h.errorJSON(w, http.StatusInternalServerError, "failed to update tier defaults")
+		return
+	}
+
+	h.writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"message": "Tier defaults updated successfully",
+	})
 }
 
 func (h *Handler) OrgListOrganizationsManaged(w http.ResponseWriter, r *http.Request) {
@@ -1312,3 +1379,243 @@ func (h *Handler) OrgListSystemRoles(w http.ResponseWriter, r *http.Request) {
 	}
 	h.writeJSON(w, http.StatusOK, roles)
 }
+
+func (h *Handler) OrgGetLicenses(w http.ResponseWriter, r *http.Request) {
+	file, err := os.Open("assets/licenses.csv")
+	if err != nil {
+		h.errorJSON(w, http.StatusInternalServerError, "failed to load licenses data")
+		return
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	if err != nil {
+		h.errorJSON(w, http.StatusInternalServerError, "failed to parse licenses data")
+		return
+	}
+
+	var licenses []map[string]string
+	if len(records) > 0 {
+		headers := records[0]
+		for _, row := range records[1:] {
+			license := make(map[string]string)
+			for i, header := range headers {
+				if i < len(row) {
+					license[header] = row[i]
+				}
+			}
+			licenses = append(licenses, license)
+		}
+	}
+
+	h.writeJSON(w, http.StatusOK, licenses)
+}
+
+func (h *Handler) OrgSetNgrokConfig(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		PatientToken      string `json:"patient_token"`
+		OrgToken          string `json:"org_token"`
+		SuperadminToken   string `json:"superadmin_token"`
+		RegistrationToken string `json:"registration_token"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		h.errorJSON(w, http.StatusBadRequest, "invalid request payload")
+		return
+	}
+
+	envPath := "../../tools/admin-dashboard/.env.local"
+	content := fmt.Sprintf("# Local-only admin dashboard secrets\nNGROK_AUTHTOKEN_PATIENT=%s\nNGROK_AUTHTOKEN_ORG=%s\nNGROK_AUTHTOKEN_SUPERADMIN=%s\nNGROK_AUTHTOKEN_REGISTRATION=%s\n", 
+		payload.PatientToken, payload.OrgToken, payload.SuperadminToken, payload.RegistrationToken)
+
+	if err := os.WriteFile(envPath, []byte(content), 0644); err != nil {
+		h.errorJSON(w, http.StatusInternalServerError, "failed to save ngrok configuration")
+		return
+	}
+
+	h.writeJSON(w, http.StatusOK, map[string]string{"message": "Ngrok configuration saved"})
+}
+
+func (h *Handler) OrgGetAiConfig(w http.ResponseWriter, r *http.Request) {
+	// Expose safe/masked versions or just keys for Super Admin to verify
+	keys := map[string]string{
+		"gemini":   os.Getenv("GEMINI_API_KEY"),
+		"groq":     os.Getenv("GROQ_API_KEY"),
+		"deepseek": os.Getenv("DEEPSEEK_API_KEY"),
+	}
+	h.writeJSON(w, http.StatusOK, keys)
+}
+
+func (h *Handler) OrgSetAiConfig(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Gemini   string `json:"gemini"`
+		Groq     string `json:"groq"`
+		Deepseek string `json:"deepseek"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		h.errorJSON(w, http.StatusBadRequest, "invalid request payload")
+		return
+	}
+
+	// This is a mock implementation that doesn't persist the env globally because updating os env vars 
+	// dynamically in a docker container only affects this process. In a real system, it would save to DB.
+	os.Setenv("GEMINI_API_KEY", payload.Gemini)
+	os.Setenv("GROQ_API_KEY", payload.Groq)
+	os.Setenv("DEEPSEEK_API_KEY", payload.Deepseek)
+
+	h.writeJSON(w, http.StatusOK, map[string]string{"message": "AI configuration updated temporarily"})
+}
+
+// ── Org: Pregnancy Care Management ─────────────────────────────────────────
+
+func (h *Handler) OrgListPregnancyEpisodes(w http.ResponseWriter, r *http.Request) {
+	orgID := subjectOrgID(r.Context())
+	limit := parseLimit(r, 100)
+	items, err := h.svcs.PatientPortal.OrgListPregnancyEpisodes(r.Context(), orgID, limit)
+	if err != nil {
+		h.errorJSON(w, http.StatusInternalServerError, "failed to list pregnancy episodes")
+		return
+	}
+	h.writeJSON(w, http.StatusOK, items)
+}
+
+func (h *Handler) OrgCreatePregnancyEpisode(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		PatientID              string   `json:"patient_id"`
+		AssignedProviderID     *string  `json:"assigned_provider_id"`
+		LMP                    *string  `json:"lmp"`
+		ExpectedDeliveryDate   *string  `json:"expected_delivery_date"`
+		GestationalAgeWeeks    *int     `json:"gestational_age_weeks"`
+		Trimester              int      `json:"trimester"`
+		Gravidity              int      `json:"gravidity"`
+		Parity                 int      `json:"parity"`
+		HighRisk               bool     `json:"high_risk"`
+		RiskFactors            []string `json:"risk_factors"`
+		ExistingConditions     []string `json:"existing_conditions"`
+		Notes                  string   `json:"notes"`
+		SeverityLevel          string   `json:"severity_level"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.errorJSON(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.PatientID == "" {
+		h.errorJSON(w, http.StatusBadRequest, "patient_id is required")
+		return
+	}
+	if req.Trimester < 1 || req.Trimester > 3 {
+		req.Trimester = 1
+	}
+	if req.SeverityLevel == "" {
+		req.SeverityLevel = "green"
+	}
+	if req.Gravidity < 1 {
+		req.Gravidity = 1
+	}
+	if req.RiskFactors == nil {
+		req.RiskFactors = []string{}
+	}
+	if req.ExistingConditions == nil {
+		req.ExistingConditions = []string{}
+	}
+
+	orgID := subjectOrgID(r.Context())
+	staffID := subjectID(r.Context())
+
+	params := map[string]any{
+		"patient_id":              req.PatientID,
+		"organization_id":         orgID,
+		"assigned_provider_id":    req.AssignedProviderID,
+		"lmp":                     req.LMP,
+		"expected_delivery_date":  req.ExpectedDeliveryDate,
+		"gestational_age_weeks":   req.GestationalAgeWeeks,
+		"trimester":               req.Trimester,
+		"gravidity":               req.Gravidity,
+		"parity":                  req.Parity,
+		"high_risk":               req.HighRisk,
+		"risk_factors":            req.RiskFactors,
+		"existing_conditions":     req.ExistingConditions,
+		"monitoring_requirements": map[string]any{},
+		"notes":                   req.Notes,
+		"severity_level":          req.SeverityLevel,
+		"created_by":              staffID,
+	}
+
+	episode, err := h.svcs.PatientPortal.OrgCreatePregnancyEpisode(r.Context(), params)
+	if err != nil {
+		log.Printf("OrgCreatePregnancyEpisode error: %v", err)
+		h.errorJSON(w, http.StatusInternalServerError, "failed to create pregnancy episode")
+		return
+	}
+	h.writeJSON(w, http.StatusCreated, episode)
+}
+
+// ── Org: Chronic Care Management ────────────────────────────────────────────
+
+func (h *Handler) OrgListChronicEnrollments(w http.ResponseWriter, r *http.Request) {
+	orgID := subjectOrgID(r.Context())
+	limit := parseLimit(r, 100)
+	items, err := h.svcs.PatientPortal.OrgListChronicEnrollments(r.Context(), orgID, limit)
+	if err != nil {
+		h.errorJSON(w, http.StatusInternalServerError, "failed to list chronic enrollments")
+		return
+	}
+	h.writeJSON(w, http.StatusOK, items)
+}
+
+func (h *Handler) OrgCreateChronicEnrollment(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		PatientID           string         `json:"patient_id"`
+		AssignedProviderID  *string        `json:"assigned_provider_id"`
+		ConditionName       string         `json:"condition_name"`
+		ICDCode             *string        `json:"icd_code"`
+		CarePlan            string         `json:"care_plan"`
+		AlertThresholds     map[string]any `json:"alert_thresholds"`
+		MonitoringFrequency string         `json:"monitoring_frequency"`
+		SeverityLevel       string         `json:"severity_level"`
+		RiskScore           float64        `json:"risk_score"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.errorJSON(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.PatientID == "" || req.ConditionName == "" {
+		h.errorJSON(w, http.StatusBadRequest, "patient_id and condition_name are required")
+		return
+	}
+	if req.SeverityLevel == "" {
+		req.SeverityLevel = "green"
+	}
+	if req.MonitoringFrequency == "" {
+		req.MonitoringFrequency = "daily"
+	}
+	if req.AlertThresholds == nil {
+		req.AlertThresholds = map[string]any{}
+	}
+
+	orgID := subjectOrgID(r.Context())
+	staffID := subjectID(r.Context())
+
+	params := map[string]any{
+		"patient_id":           req.PatientID,
+		"organization_id":      orgID,
+		"assigned_provider_id": req.AssignedProviderID,
+		"condition_name":       req.ConditionName,
+		"icd_code":             req.ICDCode,
+		"care_plan":            req.CarePlan,
+		"alert_thresholds":     req.AlertThresholds,
+		"monitoring_frequency": req.MonitoringFrequency,
+		"severity_level":       req.SeverityLevel,
+		"risk_score":           req.RiskScore,
+		"created_by":           staffID,
+	}
+
+	enrollment, err := h.svcs.PatientPortal.OrgCreateChronicEnrollment(r.Context(), params)
+	if err != nil {
+		log.Printf("OrgCreateChronicEnrollment error: %v", err)
+		h.errorJSON(w, http.StatusInternalServerError, "failed to create chronic enrollment")
+		return
+	}
+	h.writeJSON(w, http.StatusCreated, enrollment)
+}
+

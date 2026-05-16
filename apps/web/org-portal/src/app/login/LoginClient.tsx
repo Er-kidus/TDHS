@@ -90,31 +90,6 @@ export default function LoginClient() {
       body: JSON.stringify(values),
     });
 
-    if (res.status === 404) {
-      const gatewayBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-      const directRes = await fetch(`${gatewayBase}/org/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      });
-
-      if (directRes.ok) {
-        try {
-          const body = (await directRes.json()) as { token?: string };
-          if (body?.token) {
-            document.cookie = `org_token=${body.token}; path=/; SameSite=Lax`;
-            router.push(next);
-            router.refresh();
-            return;
-          }
-        } catch {
-          // Fall through to generic failure handling.
-        }
-      }
-
-      res = directRes;
-    }
-
     if (!res.ok) {
       const errorMessage = await readErrorMessage(res);
       setError(errorMessage);

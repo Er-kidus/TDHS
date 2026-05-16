@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Activity, CalendarPlus2, ClipboardList, FilePlus2, FlaskConical, Stethoscope } from "lucide-react";
 import LabOrderModal from "./LabOrderModal";
 import type { ActionPanel, Appointment } from "./types";
+import { MedSafeAi } from "@/components/ai/MedSafeAi";
 
 export function WorkflowForms({
   appointment,
@@ -104,6 +105,14 @@ export function WorkflowForms({
               <Field label="Duration days" type="number" value={prescriptionForm.durationDays} onChange={(value) => setPrescriptionForm((current) => ({ ...current, durationDays: value }))} />
             </div>
             <TextArea label="Instructions" value={prescriptionForm.instructions} onChange={(value) => setPrescriptionForm((current) => ({ ...current, instructions: value }))} />
+            
+            <MedSafeAi 
+              medication={prescriptionForm.medication} 
+              dosage={prescriptionForm.dosage} 
+              patientConditions={[]} 
+              patientAllergies={[]} 
+            />
+
             <SubmitButton disabled={isSubmitting || !canOrderDuringConsult} label="Save Prescription" busy={isSubmitting} />
           </form>
         ) : null}

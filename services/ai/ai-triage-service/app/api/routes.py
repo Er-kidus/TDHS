@@ -19,7 +19,7 @@ FREE_AI_BASE_URL = os.getenv("TRIAGE_FREE_AI_BASE_URL", "http://localhost:11434"
 FREE_AI_MODEL = os.getenv("TRIAGE_FREE_AI_MODEL", "llama3.2:3b").strip()
 FREE_AI_TIMEOUT_MS = int(os.getenv("TRIAGE_FREE_AI_TIMEOUT_MS", "2200").strip() or "2200")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip()
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
 GEMINI_BASE_URL = os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta").strip().rstrip("/")
 
 
@@ -277,4 +277,237 @@ async def score(payload: TriageRequest) -> TriageResponse:
         aiModelVersion=ai_provider if ai_provider != "rules" else "rules-only-v1",
         aiReasons=reasons,
         createdAt=datetime.now(timezone.utc).isoformat(),
+    )
+
+
+# ── Image Analysis endpoint ───────────────────────────────────────────────────
+
+class ImageAnalysisRequest(BaseModel):
+    image_base64: str = Field(min_length=1)
+    image_type: str = Field(default="image/jpeg")
+    context: str = Field(default="")  # patient symptoms for context
+
+
+class ImageAnalysisResponse(BaseModel):
+    detected_conditions: list[str]
+    recommended_specialty: str
+    confidence: float
+    severity_indicators: list[str]
+    disclaimer: str = "This AI analysis is not a medical diagnosis. Always consult a qualified healthcare professional."
+    analyzed_at: str
+
+
+@router.post("/analyze-image")
+async def analyze_image(req: ImageAnalysisRequest) -> ImageAnalysisResponse:
+    """
+    Analyze a patient-submitted image using Gemini Vision to detect visible
+    symptoms (rashes, swelling, eye conditions, wounds, etc.).
+    """
+    if not GEMINI_API_KEY:
+        raise HTTPException(status_code=503, detail="Image analysis is not available — Gemini key not configured")
+
+    # Pick first key if comma-separated
+    api_key = GEMINI_API_KEY.split(",")[0].strip()
+
+    prompt = (
+        "You are a clinical visual symptom assistant. A patient has submitted a medical photo for guidance.\n"
+        f"Patient context: {req.context or 'No additional context provided.'}\n\n"
+        "Analyze the image carefully and respond ONLY with valid JSON in this exact format:\n"
+        "{\n"
+        '  "detected_conditions": ["list of specific visible findings"],\n'
+        '  "recommended_specialty": "Medical specialty name",\n'
+        '  "confidence": 0.75,\n'
+        '  "severity_indicators": ["any visual signs that indicate severity"]\n'
+        "}\n\n"
+        "Be specific about visual findings (e.g. 'erythematous maculopapular rash on forearm', "
+        "'periorbital edema', 'jaundiced sclera'). If no abnormality is visible, say so. "
+        "Do NOT attempt a diagnosis."
+    )
+
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {"text": prompt},
+                    {"inline_data": {"mime_type": req.image_type, "data": req.image_base64}},
+                ]
+            }
+        ],
+        "generationConfig": {"response_mime_type": "application/json"},
+    }
+
+    url = f"{GEMINI_BASE_URL}/models/{GEMINI_MODEL}:generateContent?key={api_key}"
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            res = await client.post(url, json=payload)
+            if not res.is_success:
+                raise HTTPException(status_code=502, detail=f"Gemini Vision error: {res.text[:200]}")
+            data = res.json()
+            text = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "{}")
+            try:
+                parsed = json.loads(text)
+            except json.JSONDecodeError:
+                parsed = {}
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Image analysis timed out")
+
+    return ImageAnalysisResponse(
+        detected_conditions=parsed.get("detected_conditions", ["No specific conditions identified"]),
+        recommended_specialty=parsed.get("recommended_specialty", "General Practice"),
+        confidence=float(parsed.get("confidence", 0.5)),
+        severity_indicators=parsed.get("severity_indicators", []),
+        analyzed_at=datetime.now(timezone.utc).isoformat(),
+    )
+
+
+# ── Doctor Matching endpoint ──────────────────────────────────────────────────
+
+class DoctorProfile(BaseModel):
+    id: str
+    full_name: str
+    specialty: str
+    sub_specialty: str = ""
+    years_experience: int = 0
+    available: bool = True
+    online: bool = False
+    emergency_support: bool = False
+    current_sessions: int = 0
+    session_capacity: int = 1
+    languages: list[str] = Field(default_factory=list)
+    areas_of_expertise: list[str] = Field(default_factory=list)
+
+
+class MatchDoctorsRequest(BaseModel):
+    symptoms: str
+    specialty: str
+    urgency: str = "low"
+    triage_score: int = 0
+    available_doctors: list[DoctorProfile] = Field(default_factory=list)
+    patient_language: str = "en"
+
+
+class DoctorMatchResult(BaseModel):
+    doctor_id: str
+    full_name: str
+    match_score: float
+    match_reasons: list[str]
+    rank: int
+
+
+class MatchDoctorsResponse(BaseModel):
+    matches: list[DoctorMatchResult]
+    matched_at: str
+
+
+@router.post("/match-doctors")
+async def match_doctors(req: MatchDoctorsRequest) -> MatchDoctorsResponse:
+    """
+    Use AI to rank a list of available doctors against a patient's triage context.
+    Falls back to a deterministic scoring algorithm if Gemini is unavailable.
+    """
+
+    def deterministic_score(doctor: DoctorProfile) -> tuple[float, list[str]]:
+        score = 0.0
+        reasons: list[str] = []
+
+        # Specialty match
+        req_spec = req.specialty.lower()
+        doc_spec = doctor.specialty.lower()
+        if req_spec in doc_spec or doc_spec in req_spec or any(w in doc_spec for w in req_spec.split()):
+            score += 40
+            reasons.append(f"Specialty matches: {doctor.specialty}")
+        elif "general" in doc_spec or "emergency" in doc_spec:
+            score += 20
+            reasons.append("General/Emergency coverage")
+
+        # Availability
+        if doctor.available or doctor.online:
+            score += 25
+            reasons.append("Currently available")
+
+        # Emergency for urgent cases
+        if req.urgency in ("urgent", "emergent") and doctor.emergency_support:
+            score += 20
+            reasons.append("Supports emergency consultations")
+
+        # Capacity
+        if doctor.current_sessions < doctor.session_capacity:
+            score += 10
+            reasons.append("Has open session capacity")
+
+        # Language
+        if req.patient_language in doctor.languages:
+            score += 5
+            reasons.append(f"Speaks {req.patient_language}")
+
+        # Experience
+        if doctor.years_experience >= 5:
+            score += min(doctor.years_experience, 20)
+            reasons.append(f"{doctor.years_experience} years experience")
+
+        return score, reasons
+
+    # Try Gemini for smarter matching if available
+    gemini_results: dict[str, tuple[float, list[str]]] = {}
+    if GEMINI_API_KEY and len(req.available_doctors) <= 20:
+        api_key = GEMINI_API_KEY.split(",")[0].strip()
+        doctor_summaries = [
+            f"- ID: {d.id}, Name: {d.full_name}, Specialty: {d.specialty}"
+            + (f", Sub: {d.sub_specialty}" if d.sub_specialty else "")
+            + f", Available: {d.available or d.online}, EmergencySupport: {d.emergency_support}"
+            + (f", Languages: {', '.join(d.languages)}" if d.languages else "")
+            for d in req.available_doctors
+        ]
+        prompt = (
+            f"You are a healthcare triage AI. A patient needs care.\n"
+            f"Symptoms: {req.symptoms}\n"
+            f"Required specialty: {req.specialty}\n"
+            f"Urgency: {req.urgency} (score: {req.triage_score})\n\n"
+            f"Available doctors:\n" + "\n".join(doctor_summaries) + "\n\n"
+            "Rank these doctors for this patient. Respond ONLY with JSON:\n"
+            '{"rankings": [{"id": "doctor-id", "score": 85.0, "reasons": ["reason1"]}]}'
+        )
+        try:
+            url = f"{GEMINI_BASE_URL}/models/{GEMINI_MODEL}:generateContent?key={api_key}"
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"response_mime_type": "application/json"},
+            }
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                res = await client.post(url, json=payload)
+                if res.is_success:
+                    data = res.json()
+                    text = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "{}")
+                    parsed = json.loads(text)
+                    for item in parsed.get("rankings", []):
+                        gemini_results[item["id"]] = (float(item.get("score", 0)), item.get("reasons", []))
+        except Exception:
+            pass  # Fall through to deterministic
+
+    # Build final ranking
+    scored: list[tuple[DoctorProfile, float, list[str]]] = []
+    for doc in req.available_doctors:
+        if doc.id in gemini_results:
+            sc, rs = gemini_results[doc.id]
+        else:
+            sc, rs = deterministic_score(doc)
+        scored.append((doc, sc, rs))
+
+    scored.sort(key=lambda x: x[1], reverse=True)
+
+    matches = [
+        DoctorMatchResult(
+            doctor_id=doc.id,
+            full_name=doc.full_name,
+            match_score=round(sc, 1),
+            match_reasons=rs,
+            rank=i + 1,
+        )
+        for i, (doc, sc, rs) in enumerate(scored)
+    ]
+
+    return MatchDoctorsResponse(
+        matches=matches,
+        matched_at=datetime.now(timezone.utc).isoformat(),
     )

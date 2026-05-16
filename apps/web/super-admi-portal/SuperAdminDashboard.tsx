@@ -87,6 +87,8 @@ import IntegrationsPage from "./pages/IntegrationsPage";
 import MonitoringPage from "./pages/MonitoringPage";
 import BillingPage from "./pages/BillingPage";
 import DeveloperPage from "./pages/DeveloperPage";
+import AiManagementPage from "./pages/AiManagementPage";
+import { LicenseManagementPage } from "./pages/LicenseManagementPage";
 
 type ModuleId =
   | "dashboard"
@@ -102,7 +104,9 @@ type ModuleId =
   | "integrations"
   | "monitoring"
   | "billing"
-  | "developer";
+  | "developer"
+  | "licenses"
+  | "ai";
 
 interface NavModule {
   id: ModuleId;
@@ -126,6 +130,8 @@ const modulePageComponents: Record<ModuleId, React.ComponentType<Record<string, 
   monitoring: MonitoringPage,
   billing: BillingPage,
   developer: DeveloperPage,
+  ai: AiManagementPage,
+  licenses: LicenseManagementPage,
 };
 
 interface UserRow {
@@ -306,6 +312,8 @@ const modules: NavModule[] = [
   { id: "audit", label: "Audit Logs", icon: FileClock, shortcut: "G A" },
   { id: "reports", label: "Reports & Analytics", icon: Activity, shortcut: "G P" },
   { id: "services", label: "Service Management", icon: Stethoscope, shortcut: "G M" },
+  { id: "ai", label: "AI Services", icon: Server, shortcut: "G I" },
+  { id: "licenses", label: "License Management", icon: FileClock, shortcut: "G L" },
   { id: "integrations", label: "Integrations", icon: Zap, shortcut: "G I" },
   { id: "monitoring", label: "Alerts & Monitoring", icon: Server, shortcut: "G L" },
   { id: "billing", label: "Billing / Subscriptions", icon: CreditCard, shortcut: "G B" },

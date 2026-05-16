@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { PatientProvider } from "@/contexts/PatientContext";
 import { AppShell } from "@/components/layout/AppShell";
 import Login from "@/pages/Login";
+import Landing from "@/pages/Landing";
 import ReceptionDashboard from "@/pages/dashboard/ReceptionDashboard";
 import DoctorDashboard from "@/pages/dashboard/DoctorDashboard";
 import NurseDashboard from "@/pages/dashboard/NurseDashboard";
@@ -73,6 +74,7 @@ const AppContent = () => {
   const { isAuthenticated } = useAuth();
   return (
     <Routes>
+      <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Landing />} />
       <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />
       <Route path="/patient/register" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <PatientRegister />} />
       <Route path="/admin" element={isAuthenticated ? <AdminDashboard /> : <Navigate to="/login" replace />} />

@@ -42,6 +42,9 @@ export type QueueSession = {
   status: string;
   connection_status: string;
   notes?: string;
+  ai_urgency_level?: string;
+  ai_triage_score?: number;
+  ai_specialty?: string;
 };
 
 export type Patient = {
@@ -87,3 +90,32 @@ export type ApiPayload =
   | Record<string, unknown>
   | string
   | null;
+
+export type SpeechRecognitionAlternativeLike = {
+  transcript?: string;
+};
+
+export type SpeechRecognitionResultLike = {
+  isFinal?: boolean;
+  [index: number]: SpeechRecognitionAlternativeLike;
+};
+
+export type SpeechRecognitionEventLike = {
+  resultIndex: number;
+  results: SpeechRecognitionResultLike[];
+};
+
+export type SpeechRecognitionErrorEventLike = {
+  error?: string;
+};
+
+export type BrowserSpeechRecognition = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start: () => void;
+  stop: () => void;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
+  onend: (() => void) | null;
+};

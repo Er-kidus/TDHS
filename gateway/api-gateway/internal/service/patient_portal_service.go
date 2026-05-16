@@ -25,6 +25,14 @@ func (s *PatientPortalService) ListDoctors(ctx context.Context, limit int) ([]*m
 	return s.repo.ListDoctors(ctx, limit)
 }
 
+func (s *PatientPortalService) GetAvailableDoctorsBySpecialty(ctx context.Context, specialty, urgency string, limit int) ([]*model.Doctor, error) {
+	return s.repo.GetAvailableDoctorsBySpecialty(ctx, specialty, urgency, limit)
+}
+
+func (s *PatientPortalService) UpdateDoctorOnlineStatus(ctx context.Context, userID, status string) error {
+	return s.repo.UpdateDoctorOnlineStatus(ctx, userID, status)
+}
+
 func (s *PatientPortalService) ListPrescriptions(ctx context.Context, patientID string, limit int) ([]*model.Prescription, error) {
 	return s.repo.ListPrescriptionsByPatient(ctx, patientID, limit)
 }
@@ -32,6 +40,23 @@ func (s *PatientPortalService) ListPrescriptions(ctx context.Context, patientID 
 func (s *PatientPortalService) ListLabResults(ctx context.Context, patientID string, limit int) ([]*model.LabResult, error) {
 	return s.repo.ListLabResultsByPatient(ctx, patientID, limit)
 }
+
+func (s *PatientPortalService) ListVisitSummaries(ctx context.Context, patientID string, limit int) ([]*model.VisitSummary, error) {
+	return s.repo.ListVisitSummariesByPatient(ctx, patientID, limit)
+}
+
+func (s *PatientPortalService) ListLabOrders(ctx context.Context, patientID string, limit int) ([]*model.LabOrder, error) {
+	return s.repo.ListLabOrdersByPatient(ctx, patientID, limit)
+}
+
+func (s *PatientPortalService) ListDoctorPrescriptions(ctx context.Context, patientID string, limit int) ([]*model.DoctorPrescription, error) {
+	return s.repo.ListDoctorPrescriptionsByPatient(ctx, patientID, limit)
+}
+
+func (s *PatientPortalService) CheckAppointmentConflict(ctx context.Context, patientID string, scheduledAt time.Time) (bool, error) {
+	return s.repo.CheckAppointmentConflict(ctx, patientID, scheduledAt)
+}
+
 
 func (s *PatientPortalService) ListInvoices(ctx context.Context, patientID string, limit int) ([]*model.Invoice, error) {
 	return s.repo.ListInvoicesByPatient(ctx, patientID, limit)
@@ -65,14 +90,14 @@ func (s *PatientPortalService) ListTelemedicineSessions(ctx context.Context, pat
 	return s.repo.ListTelemedicineSessionsByPatient(ctx, patientID, limit)
 }
 
-func (s *PatientPortalService) CreateTelemedicineSession(ctx context.Context, patientID string, doctorID *string, doctorName string, scheduledAt time.Time, preferredMode string, requestedAmount float64, requestedCurrency string, notes *string) (*model.TelemedicineSession, error) {
+func (s *PatientPortalService) CreateTelemedicineSession(ctx context.Context, patientID string, doctorID *string, doctorName string, scheduledAt time.Time, preferredMode string, requestedAmount float64, requestedCurrency string, notes *string, aiUrgencyLevel *string, aiTriageScore *int, aiSpecialty *string) (*model.TelemedicineSession, error) {
 	if preferredMode == "" {
 		preferredMode = "video"
 	}
 	if requestedCurrency == "" {
 		requestedCurrency = "ETB"
 	}
-	return s.repo.CreateTelemedicineSession(ctx, patientID, doctorID, doctorName, scheduledAt, preferredMode, requestedAmount, requestedCurrency, notes)
+	return s.repo.CreateTelemedicineSession(ctx, patientID, doctorID, doctorName, scheduledAt, preferredMode, requestedAmount, requestedCurrency, notes, aiUrgencyLevel, aiTriageScore, aiSpecialty)
 }
 
 func (s *PatientPortalService) ListTelemedicineQueueByOrganization(ctx context.Context, organizationID string, limit int) ([]*model.TelemedicineSession, error) {
@@ -109,6 +134,22 @@ func (s *PatientPortalService) ListChronicCare(ctx context.Context, patientID st
 
 func (s *PatientPortalService) ListPregnancyCare(ctx context.Context, patientID string, limit int) ([]*model.PregnancyRecord, error) {
 	return s.repo.ListPregnancyCareByPatient(ctx, patientID, limit)
+}
+
+func (s *PatientPortalService) OrgCreatePregnancyEpisode(ctx context.Context, params map[string]any) (*model.PregnancyRecord, error) {
+	return s.repo.OrgCreatePregnancyEpisode(ctx, params)
+}
+
+func (s *PatientPortalService) OrgListPregnancyEpisodes(ctx context.Context, orgID string, limit int) ([]*model.PregnancyRecord, error) {
+	return s.repo.OrgListPregnancyEpisodes(ctx, orgID, limit)
+}
+
+func (s *PatientPortalService) OrgCreateChronicEnrollment(ctx context.Context, params map[string]any) (*model.ChronicCareRecord, error) {
+	return s.repo.OrgCreateChronicEnrollment(ctx, params)
+}
+
+func (s *PatientPortalService) OrgListChronicEnrollments(ctx context.Context, orgID string, limit int) ([]*model.ChronicCareRecord, error) {
+	return s.repo.OrgListChronicEnrollments(ctx, orgID, limit)
 }
 
 func (s *PatientPortalService) ListRecurrentMedications(ctx context.Context, patientID string, limit int) ([]*model.RecurrentMedicationRecord, error) {
@@ -180,6 +221,10 @@ func (s *PatientPortalService) ListOrganizations(ctx context.Context) ([]map[str
 
 func (s *PatientPortalService) ListOrganizationTiers(ctx context.Context) ([]map[string]any, error) {
 	return s.repo.ListTierRequirements(ctx)
+}
+
+func (s *PatientPortalService) UpdateTierDefaults(ctx context.Context, tier string, defaultServices []string) error {
+	return s.repo.UpdateTierDefaults(ctx, tier, defaultServices)
 }
 
 func (s *PatientPortalService) ListOrganizationsWithConfiguration(ctx context.Context, search string) ([]map[string]any, error) {
@@ -281,6 +326,11 @@ func (s *PatientPortalService) UpdateOrganizationStaff(ctx context.Context, orga
 	return s.repo.UpdateOrganizationStaff(ctx, organizationID, userID, fullName, authRole, profileRole, staffTemplateKey, professionalTitle, licenseNumber, active, telemedicineEnabled, telemedicineSpecialty, telemedicineRate, telemedicineCurrency, telemedicineModes)
 }
 
+func (s *PatientPortalService) UpdateOrganizationStaffTelemedicineProfile(ctx context.Context, organizationID, userID string, updates model.TelemedicineProfileUpdate) (map[string]any, error) {
+	return s.repo.UpdateOrganizationStaffTelemedicineProfile(ctx, organizationID, userID, updates)
+}
+
+
 func (s *PatientPortalService) DeleteOrganizationStaff(ctx context.Context, organizationID, userID string) error {
 	return s.repo.DeleteOrganizationStaff(ctx, organizationID, userID)
 }
@@ -332,25 +382,107 @@ func (s *PatientPortalService) OrgSystemOverview(ctx context.Context) (map[strin
 
 func (s *PatientPortalService) AIRouter(ctx context.Context, patientID, mode, message string) map[string]any {
 	intent := "general"
-	if mode == "pharmacy" {
+
+	var prompt string
+	switch mode {
+	case "medsafe_check":
+		intent = "medication_safety"
+		prompt = fmt.Sprintf(`You are a clinical pharmacist AI assistant. %s
+
+Analyze the medication for:
+1. Common drug interactions with listed conditions/medications
+2. Allergy contraindications
+3. Pregnancy safety category (if applicable)
+4. Recommended monitoring parameters
+5. Alternative options if concerns are identified
+
+Use clinical, professional language. Keep response concise (under 250 words). Do not make definitive diagnoses — flag concerns for clinician review.`, message)
+
+	case "clinical_knowledge_base":
+		intent = "clinical_reference"
+		prompt = fmt.Sprintf(`You are a clinical decision support AI. %s
+
+Provide:
+1. Relevant evidence-based clinical guidelines (mention specific guidelines e.g. WHO, NICE, CDC where applicable)
+2. Standard diagnostic criteria or scoring (e.g. ICD-10, DSM-5, clinical scores)
+3. First-line treatment recommendations
+4. Key drug references (mention RxCUI class or generic names)
+5. Red flags or referral criteria
+
+Format as a structured summary. Keep under 300 words. Cite guideline sources where possible.`, message)
+
+	case "triage_evaluator":
+		intent = "triage_assessment"
+		prompt = message // Already fully constructed by frontend
+
+	case "diet_assistant":
+		intent = "nutrition"
+		prompt = fmt.Sprintf(`You are a clinical dietitian AI. %s
+
+Provide a personalized, evidence-based nutrition guidance considering the patient's conditions. Include:
+- Recommended food groups and servings
+- Foods to avoid
+- Hydration advice
+- Any condition-specific dietary modifications
+
+Keep practical and under 250 words.`, message)
+
+	case "health_recommender":
+		intent = "exercise_physiology"
+		prompt = fmt.Sprintf(`You are a clinical exercise physiologist AI. %s
+
+Provide safe, evidence-based physical activity recommendations considering the patient's conditions. Include:
+- Safe exercise types
+- Frequency, duration, and intensity targets
+- Contraindicated activities to avoid
+- Monitoring parameters
+
+Keep practical and under 250 words.`, message)
+
+	case "pharmacy":
 		intent = "medication_assistant"
-	} else if mode == "telemedicine" {
-		intent = "telemedicine_support"
-	} else if mode == "care" {
-		intent = "care_assistant"
-	}
-	if message == "" {
-		message = "How can I help you today?"
-	}
-	prompt := fmt.Sprintf(`You are a concise healthcare assistant for a patient portal.
+		prompt = fmt.Sprintf(`You are a concise healthcare assistant for a patient portal.
 Mode: %s
 Patient request: %s
 
-Respond in 2-4 short paragraphs.
-Use clear next steps.
-Do not claim diagnosis certainty.
+Respond in 2-4 short paragraphs. Use clear next steps. Do not claim diagnosis certainty.
 If the user is describing urgent symptoms, advise seeking immediate care.
 When useful, mention medication, appointments, lab results, telemedicine, or message follow-up.`, mode, message)
+
+	case "telemedicine":
+		intent = "telemedicine_support"
+		prompt = fmt.Sprintf(`You are a concise healthcare assistant for a patient portal.
+Mode: %s
+Patient request: %s
+
+Respond in 2-4 short paragraphs. Use clear next steps. Do not claim diagnosis certainty.
+If the user is describing urgent symptoms, advise seeking immediate care.
+When useful, mention medication, appointments, lab results, telemedicine, or message follow-up.`, mode, message)
+
+	case "care":
+		intent = "care_assistant"
+		prompt = fmt.Sprintf(`You are a concise healthcare assistant for a patient portal.
+Mode: %s
+Patient request: %s
+
+Respond in 2-4 short paragraphs. Use clear next steps. Do not claim diagnosis certainty.
+If the user is describing urgent symptoms, advise seeking immediate care.
+When useful, mention medication, appointments, lab results, telemedicine, or message follow-up.`, mode, message)
+
+	default:
+		intent = "general"
+		prompt = fmt.Sprintf(`You are a concise healthcare assistant for a patient portal.
+Mode: %s
+Patient request: %s
+
+Respond in 2-4 short paragraphs. Use clear next steps. Do not claim diagnosis certainty.
+If the user is describing urgent symptoms, advise seeking immediate care.
+When useful, mention medication, appointments, lab results, telemedicine, or message follow-up.`, mode, message)
+	}
+
+	if message == "" {
+		message = "How can I help you today?"
+	}
 
 	reply := "AI router is active. " + message
 	if geminiText, err := s.callGemini(ctx, prompt); err == nil && strings.TrimSpace(geminiText) != "" {
@@ -361,6 +493,17 @@ When useful, mention medication, appointments, lab results, telemedicine, or mes
 		"mode":       mode,
 		"intent":     intent,
 		"reply":      reply,
-		"skills":     []string{"symptom_checker", "medication_assistant", "diet_assistant", "appointment_scheduler", "health_recommender"},
+		"skills":     []string{"symptom_checker", "medication_assistant", "diet_assistant", "appointment_scheduler", "health_recommender", "medsafe_check", "clinical_knowledge_base", "triage_evaluator"},
 	}
 }
+
+// EndTelemedicineSession marks a session as completed and records ended_at.
+func (s *PatientPortalService) EndTelemedicineSession(ctx context.Context, sessionID string) (*model.TelemedicineSession, error) {
+	return s.repo.EndTelemedicineSession(ctx, sessionID)
+}
+
+// CancelTelemedicineSession cancels a pending session for the given patient.
+func (s *PatientPortalService) CancelTelemedicineSession(ctx context.Context, sessionID, patientID string) (*model.TelemedicineSession, error) {
+	return s.repo.CancelTelemedicineSession(ctx, sessionID, patientID)
+}
+

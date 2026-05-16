@@ -19,6 +19,7 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 5200,
     strictPort: true,
+    allowedHosts: true,
     hmr: {
       overlay: true,
     },

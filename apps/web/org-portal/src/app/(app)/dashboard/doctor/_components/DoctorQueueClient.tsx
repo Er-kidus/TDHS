@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import { DoctorWorkspaceShell, StatGrid } from "./DoctorWorkspaceShell";
 import { PatientPanel } from "./PatientPanel";
 import { QueueList } from "./QueueList";
@@ -7,6 +9,7 @@ import { useDoctorWorkspace } from "./useDoctorWorkspace";
 
 export function DoctorQueueClient() {
   const workspace = useDoctorWorkspace();
+  const router = useRouter();
 
   return (
     <DoctorWorkspaceShell view="queue" onRefresh={() => void workspace.loadData()} loadingError={workspace.loadingError} actionError={workspace.actionError} actionMessage={workspace.actionMessage}>
@@ -17,7 +20,10 @@ export function DoctorQueueClient() {
           queueLookup={workspace.queueLookup}
           selectedAppointmentId={workspace.selectedAppointmentId}
           loading={workspace.loading}
-          onSelect={workspace.setSelectedAppointmentId}
+          onSelect={(id) => {
+            workspace.setSelectedAppointmentId(id);
+            router.push("/dashboard/doctor/workflow");
+          }}
         />
        
     

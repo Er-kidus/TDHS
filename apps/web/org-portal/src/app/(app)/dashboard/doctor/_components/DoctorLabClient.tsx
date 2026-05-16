@@ -58,7 +58,7 @@ function ResultPreviewModal({
                 <div className="mt-3 flex flex-wrap gap-2">
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      item.status === "completed"
+                      item.status === "finalized"
                         ? "bg-emerald-100 text-emerald-700"
                         : "bg-amber-100 text-amber-700"
                     }`}
@@ -296,7 +296,7 @@ export function DoctorLabClient() {
 
                           <span
                             className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${
-                              item.status === "completed"
+                              item.status === "finalized"
                                 ? "bg-emerald-100 text-emerald-700"
                                 : "bg-amber-100 text-amber-700"
                             }`}

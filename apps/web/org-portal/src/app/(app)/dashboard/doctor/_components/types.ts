@@ -10,6 +10,7 @@ export type Doctor = {
 export type Appointment = {
   id: string;
   patient_id: string;
+  doctor_id?: string;
   status: string;
   reason?: string;
   notes?: string;

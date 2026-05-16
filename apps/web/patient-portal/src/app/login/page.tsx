@@ -119,27 +119,6 @@ export default function LoginPage() {
         body: JSON.stringify(values),
       });
 
-      if (res.status === 404) {
-        const gatewayBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-        const directRes = await fetch(`${gatewayBase}/auth/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(values),
-        });
-
-        if (directRes.ok) {
-          const body = (await directRes.json().catch(() => ({}))) as { token?: string };
-          if (body?.token) {
-            document.cookie = `patient_token=${body.token}; path=/; SameSite=Lax`;
-            router.push("/dashboard");
-            router.refresh();
-            return;
-          }
-        }
-
-        res = directRes;
-      }
-
       if (!res.ok) {
         throw new Error(await readErrorMessage(res, "Login failed"));
       }

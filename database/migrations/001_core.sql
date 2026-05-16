@@ -33,6 +33,8 @@ ON CONFLICT (slug) DO NOTHING;
 CREATE TABLE IF NOT EXISTS roles (
     id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name        VARCHAR(50) UNIQUE NOT NULL,
+    description VARCHAR(500),
+    active      BOOLEAN DEFAULT TRUE,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

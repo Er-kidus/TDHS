@@ -19,15 +19,19 @@ export const tierOrder: Tier[] = [
 export const serviceCatalog: Array<{
   key: ServiceKey;
   label: string;
+  patientVisible?: boolean;
   category:
     | "Core Clinical Services"
     | "Diagnostics"
     | "Pharmacy"
     | "Administration"
     | "Digital Services"
+    | "Surgical & Intensive Care"
+    | "Research & Teaching"
+    | "AI & Decision Support"
     | "System Configuration Impact";
 }> = [
-    { key: "patient_registration", label: "Patient registration", category: "Core Clinical Services" },
+    { key: "patient_registration", label: "Patient registration", category: "Core Clinical Services", patientVisible: true },
     { key: "encounter_capture", label: "Encounter capture", category: "Core Clinical Services" },
     { key: "condition_capture", label: "Condition capture", category: "Core Clinical Services" },
     { key: "referral_management", label: "Referral management", category: "Core Clinical Services" },
@@ -123,31 +127,31 @@ export const serviceCatalog: Array<{
     { key: "follow_up_prediction", label: "Follow-up prediction", category: "Digital Services" },
     { key: "offline_sync", label: "Offline sync", category: "Digital Services" },
     { key: "clinical_workflows_customization", label: "Custom clinical workflows", category: "System Configuration Impact" },
-    { key: "ai_decision_support", label: "AI decision support", category: "System Configuration Impact" },
+    { key: "ai_decision_support", label: "AI decision support", category: "AI & Decision Support" },
     { key: "advanced_case_management", label: "Advanced case management", category: "System Configuration Impact" },
-    { key: "research_data_module", label: "Research data module", category: "System Configuration Impact" },
+    { key: "research_data_module", label: "Research data module", category: "Research & Teaching" },
     { key: "cross_hospital_data_exchange", label: "Cross-hospital data exchange", category: "System Configuration Impact" },
     { key: "full_compliance_audit_tracking", label: "Full compliance and audit tracking", category: "System Configuration Impact" },
-    { key: "diagnosis", label: "Diagnosis", category: "System Configuration Impact" },
-    { key: "clinical_assessment", label: "Clinical assessment", category: "System Configuration Impact" },
-    { key: "care_planning", label: "Care planning", category: "System Configuration Impact" },
-    { key: "minor_procedures", label: "Minor procedures", category: "System Configuration Impact" },
-    { key: "surgery_execution", label: "Surgery execution", category: "System Configuration Impact" },
-    { key: "pre_op_planning", label: "Pre-op planning", category: "System Configuration Impact" },
-    { key: "post_op_care", label: "Post-op care", category: "System Configuration Impact" },
-    { key: "emergency_surgery", label: "Emergency surgery", category: "System Configuration Impact" },
-    { key: "or_scheduling", label: "OR scheduling", category: "System Configuration Impact" },
-    { key: "surgical_inventory", label: "Surgical inventory", category: "System Configuration Impact" },
-    { key: "sterilization_workflow", label: "Sterilization workflow", category: "System Configuration Impact" },
-    { key: "pre_op_assessment", label: "Pre-op assessment", category: "System Configuration Impact" },
-    { key: "anesthesia_delivery", label: "Anesthesia delivery", category: "System Configuration Impact" },
-    { key: "intra_op_monitoring", label: "Intra-op monitoring", category: "System Configuration Impact" },
-    { key: "airway_management", label: "Airway management", category: "System Configuration Impact" },
-    { key: "icu_handoff", label: "ICU handoff", category: "System Configuration Impact" },
-    { key: "triage", label: "Triage", category: "System Configuration Impact" },
-    { key: "admission_decision", label: "Admission decision", category: "System Configuration Impact" },
-    { key: "mass_casualty_handling", label: "Mass casualty handling", category: "System Configuration Impact" },
-    { key: "ventilator_management", label: "Ventilator management", category: "System Configuration Impact" },
+    { key: "diagnosis", label: "Diagnosis", category: "Core Clinical Services", patientVisible: true },
+    { key: "clinical_assessment", label: "Clinical assessment", category: "Core Clinical Services", patientVisible: true },
+    { key: "care_planning", label: "Care planning", category: "Core Clinical Services" },
+    { key: "minor_procedures", label: "Minor procedures", category: "Surgical & Intensive Care", patientVisible: true },
+    { key: "surgery_execution", label: "Surgery execution", category: "Surgical & Intensive Care", patientVisible: true },
+    { key: "pre_op_planning", label: "Pre-op planning", category: "Surgical & Intensive Care" },
+    { key: "post_op_care", label: "Post-op care", category: "Surgical & Intensive Care" },
+    { key: "emergency_surgery", label: "Emergency surgery", category: "Surgical & Intensive Care", patientVisible: true },
+    { key: "or_scheduling", label: "OR scheduling", category: "Administration" },
+    { key: "surgical_inventory", label: "Surgical inventory", category: "Administration" },
+    { key: "sterilization_workflow", label: "Sterilization workflow", category: "Administration" },
+    { key: "pre_op_assessment", label: "Pre-op assessment", category: "Surgical & Intensive Care" },
+    { key: "anesthesia_delivery", label: "Anesthesia delivery", category: "Surgical & Intensive Care" },
+    { key: "intra_op_monitoring", label: "Intra-op monitoring", category: "Surgical & Intensive Care" },
+    { key: "airway_management", label: "Airway management", category: "Surgical & Intensive Care" },
+    { key: "icu_handoff", label: "ICU handoff", category: "Surgical & Intensive Care" },
+    { key: "triage", label: "Triage", category: "Core Clinical Services" },
+    { key: "admission_decision", label: "Admission decision", category: "Core Clinical Services" },
+    { key: "mass_casualty_handling", label: "Mass casualty handling", category: "Administration" },
+    { key: "ventilator_management", label: "Ventilator management", category: "Surgical & Intensive Care" },
     { key: "iv_infusion_control", label: "IV infusion control", category: "System Configuration Impact" },
     { key: "infection_control_logging", label: "Infection control logging", category: "System Configuration Impact" },
     { key: "or_optimization", label: "OR optimization", category: "System Configuration Impact" },

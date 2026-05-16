@@ -179,7 +179,7 @@ func (s *PatientPortalService) callGemini(ctx context.Context, prompt string) (s
 	}
 	modelName := s.cfg.GeminiModel
 	if modelName == "" {
-		modelName = "gemini-1.5-flash"
+		modelName = "gemini-2.5-flash"
 	}
 	reqBody := map[string]any{
 		"contents": []map[string]any{{
@@ -187,43 +187,72 @@ func (s *PatientPortalService) callGemini(ctx context.Context, prompt string) (s
 			"parts": []map[string]any{{"text": prompt}},
 		}},
 		"generationConfig": map[string]any{
-			"temperature":      0.2,
-			"responseMimeType": "application/json",
+			"temperature":     0.2,
+			"maxOutputTokens": 2048,
+			"thinkingConfig": map[string]any{
+				"thinkingBudget": 0,
+			},
 		},
 	}
 	body, _ := json.Marshal(reqBody)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s", modelName, s.cfg.GeminiAPIKey), bytes.NewReader(body))
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	respBody, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("gemini request failed: %s", strings.TrimSpace(string(respBody)))
-	}
-	var decoded struct {
-		Candidates []struct {
-			Content struct {
-				Parts []struct {
-					Text string `json:"text"`
-				} `json:"parts"`
-			} `json:"content"`
-		} `json:"candidates"`
-	}
-	if err := json.Unmarshal(respBody, &decoded); err != nil {
-		return "", err
-	}
-	for _, candidate := range decoded.Candidates {
-		for _, part := range candidate.Content.Parts {
-			if strings.TrimSpace(part.Text) != "" {
-				return part.Text, nil
+
+	apiKeys := strings.Split(s.cfg.GeminiAPIKey, ",")
+	var lastErr error
+
+	for _, key := range apiKeys {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s", modelName, key), bytes.NewReader(body))
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		
+		respBody, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 {
+			lastErr = fmt.Errorf("gemini request failed (status %d): %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+			continue // try next key
+		}
+
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return "", fmt.Errorf("gemini request failed (status %d): %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+		}
+
+		var decoded struct {
+			Candidates []struct {
+				Content struct {
+					Parts []struct {
+						Text string `json:"text"`
+					} `json:"parts"`
+				} `json:"content"`
+			} `json:"candidates"`
+		}
+		if err := json.Unmarshal(respBody, &decoded); err != nil {
+			return "", err
+		}
+		for _, candidate := range decoded.Candidates {
+			for _, part := range candidate.Content.Parts {
+				if strings.TrimSpace(part.Text) != "" {
+					return part.Text, nil
+				}
 			}
 		}
+		return "", errors.New("gemini returned an empty response")
+	}
+
+	if lastErr != nil {
+		return "", fmt.Errorf("all gemini keys failed, last error: %v", lastErr)
 	}
 	return "", errors.New("gemini returned an empty response")
 }

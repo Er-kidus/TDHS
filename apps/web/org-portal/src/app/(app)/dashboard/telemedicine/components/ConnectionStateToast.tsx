@@ -1,14 +1,15 @@
 "use client";
 
 import { useConnectionState } from "@livekit/components-react";
+import { ConnectionState } from "livekit-client";
 
 export function ConnectionStateToast() {
   const connectionState = useConnectionState();
 
   const showToast =
-    connectionState === "disconnected" ||
-    connectionState === "failed" ||
-    connectionState === "lost";
+    connectionState === ConnectionState.Disconnected ||
+    connectionState === ConnectionState.Reconnecting ||
+    connectionState === ConnectionState.SignalReconnecting;
 
   if (!showToast) return null;
 

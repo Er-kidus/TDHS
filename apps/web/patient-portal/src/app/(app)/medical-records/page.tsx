@@ -1,49 +1,148 @@
-import { Download, Share2 } from "lucide-react";
+"use client";
 
-const timeline = [
-  { date: "2026-04-01", title: "Follow-up Visit", type: "Visit Summary", detail: "Blood pressure stable. Continue current plan." },
-  { date: "2026-03-25", title: "Lipid Panel", type: "Lab Report", detail: "LDL slightly elevated; lifestyle advice provided." },
-  { date: "2026-03-10", title: "Initial Consultation", type: "Diagnosis", detail: "Primary hypertension diagnosed." },
-];
+import { Download, Share2, FileText, Loader2, Calendar } from "lucide-react";
+import { useEffect, useState } from "react";
+
+type VisitSummary = {
+  id: string;
+  appointment_id: string;
+  patient_id: string;
+  summary: string;
+  disposition: string;
+  service_type?: string;
+  facility_name?: string;
+  scheduled_at?: string;
+  created_at: string;
+};
 
 export default function MedicalRecordsPage() {
+  const [records, setRecords] = useState<VisitSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Filters
+  const [keyword, setKeyword] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
+
+  useEffect(() => {
+    async function loadRecords() {
+      try {
+        setLoading(true);
+        const res = await fetch("/api/medical-records");
+        if (!res.ok) throw new Error("Failed to load medical records");
+        const data = await res.json();
+        setRecords(Array.isArray(data) ? data : []);
+      } catch (e: any) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadRecords();
+  }, []);
+
+  const filteredRecords = records.filter(record => {
+    if (keyword && !record.summary.toLowerCase().includes(keyword.toLowerCase()) && 
+        !record.disposition.toLowerCase().includes(keyword.toLowerCase())) {
+      return false;
+    }
+    if (dateFilter) {
+      const recordDate = new Date(record.created_at).toISOString().split('T')[0];
+      if (recordDate !== dateFilter) return false;
+    }
+    return true;
+  });
+
   return (
-    <div className="space-y-6 max-w-screen-2xl mx-auto">
+    <div className="space-y-6 max-w-screen-2xl mx-auto pb-10">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Medical Records</h1>
-        <p className="text-sm text-muted-foreground mt-1">Patient history timeline, diagnoses, and visit documents.</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-white">Medical Records</h1>
+        <p className="text-sm text-slate-400 mt-1">Patient history timeline, diagnoses, and visit summaries from your doctors.</p>
       </div>
 
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-soft">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-          <input className="rounded-lg border border-border bg-background px-3 py-2 text-sm" placeholder="Filter by keyword" />
-          <select aria-label="Filter record type" className="rounded-lg border border-border bg-background px-3 py-2 text-sm">
-            <option>All record types</option>
-            <option>Diagnosis</option>
-            <option>Procedure</option>
-            <option>Visit Summary</option>
-            <option>Lab Report</option>
-          </select>
-          <input aria-label="Filter by record date" type="date" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+      <section className="rounded-2xl border border-white/10 bg-slate-950/50 p-5 shadow-soft">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+          <input 
+            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-500/50" 
+            placeholder="Search summaries or dispositions..." 
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+          />
+          <input 
+            type="date" 
+            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-sky-500/50" 
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+          />
         </div>
 
-        <div className="space-y-3">
-          {timeline.map((entry) => (
-            <article key={entry.date + entry.title} className="rounded-xl border border-border bg-background p-4">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                <div>
-                  <p className="text-xs text-muted-foreground">{entry.date} • {entry.type}</p>
-                  <h3 className="font-semibold mt-1">{entry.title}</h3>
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+            <Loader2 className="h-8 w-8 animate-spin mb-4 text-sky-500" />
+            <p>Loading your medical records...</p>
+          </div>
+        ) : error ? (
+          <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-6 text-center text-red-400">
+            {error}
+          </div>
+        ) : filteredRecords.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-white/10 p-12 text-center text-slate-400">
+            <FileText className="mx-auto h-12 w-12 opacity-20 mb-4" />
+            <p>No medical records found.</p>
+            {keyword || dateFilter ? <p className="text-xs mt-2">Try adjusting your filters.</p> : null}
+          </div>
+        ) : (
+          <div className="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-800 before:to-transparent">
+            {filteredRecords.map((entry, idx) => (
+              <div key={entry.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                {/* Timeline dot */}
+                <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-slate-950 bg-sky-500 text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
+                  <FileText className="h-4 w-4" />
                 </div>
-                <div className="flex gap-2">
-                  <button className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-accent inline-flex items-center gap-1"><Download className="h-3.5 w-3.5" /> PDF</button>
-                  <button className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-accent inline-flex items-center gap-1"><Share2 className="h-3.5 w-3.5" /> Share</button>
+                
+                {/* Card */}
+                <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors backdrop-blur-sm">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-sky-400 flex items-center gap-1.5">
+                        <Calendar className="h-3 w-3" />
+                        {new Date(entry.created_at).toLocaleDateString()}
+                      </p>
+                      <div className="flex gap-2">
+                        <button className="rounded-lg bg-white/5 p-1.5 text-slate-400 hover:bg-white/10 hover:text-white transition" title="Download PDF"><Download className="h-3.5 w-3.5" /></button>
+                        <button className="rounded-lg bg-white/5 p-1.5 text-slate-400 hover:bg-white/10 hover:text-white transition" title="Share"><Share2 className="h-3.5 w-3.5" /></button>
+                      </div>
+                    </div>
+                    
+                    <h3 className="font-semibold text-white text-base">Visit Summary</h3>
+                    
+                    {(entry.facility_name || entry.service_type) && (
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        {entry.facility_name && (
+                          <span className="rounded-md bg-slate-800 px-2 py-1 text-slate-300">🏥 {entry.facility_name}</span>
+                        )}
+                        {entry.service_type && (
+                          <span className="rounded-md bg-slate-800 px-2 py-1 text-slate-300">🩺 {entry.service_type.replace(/_/g, ' ')}</span>
+                        )}
+                      </div>
+                    )}
+                    
+                    <div className="mt-2 text-sm text-slate-300 whitespace-pre-wrap bg-slate-900/50 p-3 rounded-lg border border-white/5">
+                      {entry.summary}
+                    </div>
+                    
+                    {entry.disposition && (
+                      <div className="mt-2 border-t border-white/5 pt-2">
+                        <p className="text-xs font-medium text-slate-400 mb-1">Doctor's Disposition / Plan</p>
+                        <p className="text-sm text-sky-200">{entry.disposition}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground mt-2">{entry.detail}</p>
-            </article>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

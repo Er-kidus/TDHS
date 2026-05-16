@@ -23,7 +23,7 @@ export interface StaffTemplate {
   role_group: string;
   category: string;
   api_role: string;
-  active?: boolean;
+  active?: boolean; staff_template_key?: string; role?: string;
   description?: string;
   min_staff_required?: number;
 }
@@ -42,7 +42,7 @@ export interface CreateStaffPayload {
 export interface UpdateStaffPayload {
   professional_title?: string;
   license_number?: string;
-  active?: boolean;
+  active?: boolean; staff_template_key?: string; role?: string;
 }
 
 class StaffService {
@@ -78,7 +78,7 @@ class StaffService {
       const memberOrgId = (member.organization_id || "").trim().toLowerCase();
       const sameOrganization = !memberOrgId || memberOrgId === organizationId.trim().toLowerCase();
       const role = member.role?.trim().toLowerCase();
-      return sameOrganization && Boolean(member.staff_template_key) && role !== "admin" && role !== "superadmin";
+      return sameOrganization && role !== "admin" && role !== "superadmin";
     });
   }
 

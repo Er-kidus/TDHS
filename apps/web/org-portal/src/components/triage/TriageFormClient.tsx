@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { AiTriageEvaluator } from '@/components/ai/AiTriageEvaluator';
 
 type Appointment = {
   id: string;
@@ -103,6 +104,7 @@ type FormState = {
   knownAllergies: string;
   chiefComplaint: string;
   routeTarget: TriageTarget;
+  doctorId: string;
 };
 
 type BannerState = {
@@ -272,6 +274,7 @@ function createEmptyForm(): FormState {
     knownAllergies: '',
     chiefComplaint: '',
     routeTarget: 'doctor',
+    doctorId: '',
   };
 }
 
@@ -315,6 +318,7 @@ async function requestJson(url: string, options: RequestInit) {
 export function TriageFormClient({ appointmentId }: Props) {
   const storageKey = `${STATE_KEY_PREFIX}:${appointmentId}`;
   const [loading, setLoading] = useState(true);
+  const [doctors, setDoctors] = useState<{id: string, full_name: string}[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [appointment, setAppointment] = useState<Appointment | null>(null);
@@ -350,10 +354,11 @@ export function TriageFormClient({ appointmentId }: Props) {
     setError(null);
 
     try {
-      const [appointmentRes, patientsRes, queuesRes] = await Promise.all([
+      const [appointmentRes, patientsRes, queuesRes, doctorsRes] = await Promise.all([
         fetch(`/api/appointments/${encodeURIComponent(appointmentId)}`, { cache: 'no-store' }),
         fetch('/api/org/patients?limit=300', { cache: 'no-store' }),
         fetch('/api/org/queues', { cache: 'no-store' }),
+        fetch('/api/org/doctors', { cache: 'no-store' }),
       ]);
 
       if (!appointmentRes.ok) {
@@ -364,8 +369,10 @@ export function TriageFormClient({ appointmentId }: Props) {
       const appointmentData = (await appointmentRes.json()) as Appointment;
       const patientsData = (await patientsRes.json().catch(() => [])) as unknown;
       const queuesData = (await queuesRes.json().catch(() => [])) as unknown;
+      const doctorsData = (await doctorsRes.json().catch(() => [])) as unknown;
       const patientItems = Array.isArray(patientsData) ? (patientsData as Patient[]) : [];
       const queueItems = Array.isArray(queuesData) ? (queuesData as QueueEntry[]) : [];
+      const doctorItems = Array.isArray(doctorsData) ? (doctorsData as {id: string, full_name: string}[]) : [];
       const matchedPatient = patientItems.find((item) => item.id === appointmentData.patient_id) || null;
       const matchedQueue = queueItems.find((item) => item.appointment_id === appointmentId) || null;
       const defaultForm = buildDefaultForm(appointmentData, matchedQueue);
@@ -373,6 +380,7 @@ export function TriageFormClient({ appointmentId }: Props) {
       setAppointment(appointmentData);
       setPatient(matchedPatient);
       setQueueEntry(matchedQueue);
+      setDoctors(doctorItems);
 
       if (typeof window !== 'undefined') {
         const raw = window.sessionStorage.getItem(storageKey);
@@ -536,6 +544,7 @@ export function TriageFormClient({ appointmentId }: Props) {
         status: nextStatus,
         notes: mergedNotes,
         assignedStaffType: staffTypeForTarget(target),
+        doctor_id: form.doctorId || undefined,
       }),
     });
 
@@ -788,6 +797,14 @@ console.groupEnd();
             <LabeledField label="Known Allergies (comma-separated)">
               <input title="Known Allergies" placeholder="Known Allergies" value={form.knownAllergies} onChange={(event) => setField('knownAllergies', event.target.value)} />
             </LabeledField>
+            <LabeledField label="Assign Doctor">
+              <select title="Assign Doctor" value={form.doctorId} onChange={(event) => setField('doctorId', event.target.value)}>
+                <option value="">-- Any Doctor --</option>
+                {doctors.map(doc => (
+                  <option key={doc.id} value={doc.id}>{doc.full_name}</option>
+                ))}
+              </select>
+            </LabeledField>
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
@@ -800,6 +817,25 @@ console.groupEnd();
             <button type="button" onClick={() => clearRunState()} disabled={saving} className={primaryButtonClass('amber')}>
               Reset Output
             </button>
+          </div>
+
+          <div className="mt-6">
+            <AiTriageEvaluator
+              symptoms={form.symptoms}
+              chiefComplaint={form.chiefComplaint}
+              ageYears={form.ageYears}
+              chronicConditions={form.chronicConditions}
+              knownAllergies={form.knownAllergies}
+              vitals={{
+                heartRate: form.heartRate,
+                systolicBp: form.systolicBp,
+                diastolicBp: form.diastolicBp,
+                oxygenSaturation: form.oxygenSaturation,
+                temperatureC: form.temperatureC,
+                respiratoryRate: form.respiratoryRate,
+                painScore: form.painScore,
+              }}
+            />
           </div>
       </article>
 

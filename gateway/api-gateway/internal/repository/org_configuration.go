@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/tenadam/api-gateway/internal/model"
 )
 
 func deriveConfiguredFeatures(enabledServices []string, queueEnabled bool) []string {
@@ -102,6 +104,34 @@ func (r *Repository) ListTierRequirements(ctx context.Context) ([]map[string]any
 	}
 
 	return out, rows.Err()
+}
+
+func (r *Repository) UpdateTierDefaults(ctx context.Context, tier string, defaultServices []string) error {
+	defaultServicesJSON, err := json.Marshal(defaultServices)
+	if err != nil {
+		return err
+	}
+
+	res, err := r.db.ExecContext(ctx, `
+		UPDATE organization_tier_requirements
+		SET default_services = $2::jsonb, updated_at = NOW()
+		WHERE tier = $1
+	`, tier, string(defaultServicesJSON))
+	
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return errors.New("tier not found")
+	}
+
+	return nil
 }
 
 func (r *Repository) ListOrganizationsWithConfiguration(ctx context.Context, search string) ([]map[string]any, error) {
@@ -674,7 +704,7 @@ func (r *Repository) ListOrganizationStaff(ctx context.Context, organizationID s
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT
 			u.id,
-			sp.organization_id,
+			COALESCE(sp.organization_id, u.organization_id),
 			u.full_name,
 			u.email,
 			u.active,
@@ -687,13 +717,24 @@ func (r *Repository) ListOrganizationStaff(ctx context.Context, organizationID s
 			COALESCE(sp.telemedicine_rate, 0),
 			COALESCE(sp.telemedicine_currency, 'ETB'),
 			COALESCE(sp.telemedicine_modes, '["video","voice","chat"]'::jsonb),
+			sp.sub_specialty,
+			sp.years_experience,
+			sp.languages_spoken,
+			sp.online_status,
+			sp.session_capacity,
+			sp.certifications,
+			sp.areas_of_expertise,
+			sp.emergency_support,
+			sp.availability_schedule,
+			sp.profile_completeness,
 			u.created_at,
 			u.updated_at
 		FROM users u
-		INNER JOIN org_staff_profiles sp ON sp.user_id = u.id AND sp.organization_id = $1
+		LEFT JOIN org_staff_profiles sp ON sp.user_id = u.id AND sp.organization_id = $1
 		LEFT JOIN user_roles ur ON ur.user_id = u.id
 		LEFT JOIN roles ON roles.id = ur.role_id
-		WHERE LOWER(COALESCE(roles.name, sp.role, 'staff')) NOT IN ('admin', 'superadmin', 'super-admin', 'super_admin')
+		WHERE (u.organization_id = $1 OR sp.organization_id = $1)
+		  AND LOWER(COALESCE(roles.name, sp.role, 'staff')) NOT IN ('admin', 'superadmin', 'super-admin', 'super_admin')
 		ORDER BY u.created_at DESC
 		LIMIT $2
 	`, organizationID, limit)
@@ -714,14 +755,37 @@ func (r *Repository) ListOrganizationStaff(ctx context.Context, organizationID s
 		var telemedicineRate float64
 		var telemedicineCurrency string
 		var telemedicineModesRaw []byte
+		var subSpecialty sql.NullString
+		var yearsExperience sql.NullInt64
+		var languagesSpokenRaw []byte
+		var onlineStatus sql.NullString
+		var sessionCapacity sql.NullInt64
+		var certificationsRaw []byte
+		var areasOfExpertiseRaw []byte
+		var emergencySupport sql.NullBool
+		var availabilityScheduleRaw []byte
+		var profileCompleteness sql.NullInt64
 		var createdAt, updatedAt time.Time
-		if err := rows.Scan(&id, &organizationIDValue, &fullName, &email, &active, &role, &staffTemplateKey, &professionalTitle, &licenseNumber, &telemedicineEnabled, &telemedicineSpecialty, &telemedicineRate, &telemedicineCurrency, &telemedicineModesRaw, &createdAt, &updatedAt); err != nil {
+		if err := rows.Scan(&id, &organizationIDValue, &fullName, &email, &active, &role, &staffTemplateKey, &professionalTitle, &licenseNumber, &telemedicineEnabled, &telemedicineSpecialty, &telemedicineRate, &telemedicineCurrency, &telemedicineModesRaw, &subSpecialty, &yearsExperience, &languagesSpokenRaw, &onlineStatus, &sessionCapacity, &certificationsRaw, &areasOfExpertiseRaw, &emergencySupport, &availabilityScheduleRaw, &profileCompleteness, &createdAt, &updatedAt); err != nil {
 			return nil, err
 		}
 		telemedicineModes := []string{"video", "voice", "chat"}
 		if len(telemedicineModesRaw) > 0 {
 			_ = json.Unmarshal(telemedicineModesRaw, &telemedicineModes)
 		}
+		
+		languagesSpoken := []string{}
+		if len(languagesSpokenRaw) > 0 { _ = json.Unmarshal(languagesSpokenRaw, &languagesSpoken) }
+		
+		certifications := []string{}
+		if len(certificationsRaw) > 0 { _ = json.Unmarshal(certificationsRaw, &certifications) }
+		
+		areasOfExpertise := []string{}
+		if len(areasOfExpertiseRaw) > 0 { _ = json.Unmarshal(areasOfExpertiseRaw, &areasOfExpertise) }
+		
+		var availabilitySchedule map[string]any
+		if len(availabilityScheduleRaw) > 0 { _ = json.Unmarshal(availabilityScheduleRaw, &availabilitySchedule) }
+
 		item := map[string]any{
 			"id":                     id,
 			"organization_id":        organizationIDValue,
@@ -737,6 +801,16 @@ func (r *Repository) ListOrganizationStaff(ctx context.Context, organizationID s
 			"telemedicine_rate":      telemedicineRate,
 			"telemedicine_currency":  telemedicineCurrency,
 			"telemedicine_modes":     telemedicineModes,
+			"sub_specialty":          nil,
+			"years_experience":       nil,
+			"languages_spoken":       languagesSpoken,
+			"online_status":          nil,
+			"session_capacity":       nil,
+			"certifications":         certifications,
+			"areas_of_expertise":     areasOfExpertise,
+			"emergency_support":      nil,
+			"availability_schedule":  availabilitySchedule,
+			"profile_completeness":   nil,
 			"created_at":             createdAt,
 			"updated_at":             updatedAt,
 		}
@@ -752,6 +826,12 @@ func (r *Repository) ListOrganizationStaff(ctx context.Context, organizationID s
 		if telemedicineSpecialty.Valid {
 			item["telemedicine_specialty"] = telemedicineSpecialty.String
 		}
+		if subSpecialty.Valid { item["sub_specialty"] = subSpecialty.String }
+		if yearsExperience.Valid { item["years_experience"] = int(yearsExperience.Int64) }
+		if onlineStatus.Valid { item["online_status"] = onlineStatus.String }
+		if sessionCapacity.Valid { item["session_capacity"] = int(sessionCapacity.Int64) }
+		if emergencySupport.Valid { item["emergency_support"] = emergencySupport.Bool }
+		if profileCompleteness.Valid { item["profile_completeness"] = int(profileCompleteness.Int64) }
 		out = append(out, item)
 	}
 
@@ -837,7 +917,7 @@ func (r *Repository) UpdateOrganizationStaff(ctx context.Context, organizationID
 			SELECT 1
 			FROM users u
 			LEFT JOIN org_staff_profiles sp ON sp.user_id = u.id
-			WHERE u.id = $1 AND COALESCE(sp.organization_id, u.organization_id) = $2
+			WHERE u.id = $1 AND COALESCE(COALESCE(sp.organization_id, u.organization_id), u.organization_id) = $2
 		)
 	`, userID, organizationID).Scan(&exists); err != nil {
 		return nil, err
@@ -928,6 +1008,99 @@ func (r *Repository) UpdateOrganizationStaff(ctx context.Context, organizationID
 	return nil, ErrNotFound
 }
 
+func (r *Repository) UpdateOrganizationStaffTelemedicineProfile(ctx context.Context, organizationID, userID string, updates model.TelemedicineProfileUpdate) (map[string]any, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	var exists bool
+	if err := tx.QueryRowContext(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM users u
+			LEFT JOIN org_staff_profiles sp ON sp.user_id = u.id
+			WHERE u.id = $1 AND COALESCE(COALESCE(sp.organization_id, u.organization_id), u.organization_id) = $2
+		)
+	`, userID, organizationID).Scan(&exists); err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, ErrNotFound
+	}
+
+	telemedicineModesJSON, err := jsonSliceOrNil(updates.TelemedicineModes)
+	if err != nil {
+		return nil, err
+	}
+	
+	languagesSpokenJSON, err := jsonSliceOrNil(updates.LanguagesSpoken)
+	if err != nil { return nil, err }
+	certificationsJSON, err := jsonSliceOrNil(updates.Certifications)
+	if err != nil { return nil, err }
+	areasOfExpertiseJSON, err := jsonSliceOrNil(updates.AreasOfExpertise)
+	if err != nil { return nil, err }
+	
+	var availabilityScheduleJSON *string
+	if updates.AvailabilitySchedule != nil {
+		b, err := json.Marshal(updates.AvailabilitySchedule)
+		if err != nil { return nil, err }
+		s := string(b)
+		availabilityScheduleJSON = &s
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO org_staff_profiles (
+			user_id, organization_id, telemedicine_enabled, telemedicine_specialty, 
+			telemedicine_rate, telemedicine_currency, telemedicine_modes,
+			sub_specialty, years_experience, languages_spoken, online_status,
+			session_capacity, certifications, areas_of_expertise, emergency_support,
+			availability_schedule, profile_completeness
+		)
+		VALUES (
+			$1, $2, COALESCE($3, FALSE), NULLIF($4, ''), COALESCE($5, 0), COALESCE(NULLIF($6, ''), 'ETB'), COALESCE($7::jsonb, '["video","voice","chat"]'::jsonb),
+			NULLIF($8, ''), $9, $10::jsonb, NULLIF($11, ''), $12, $13::jsonb, $14::jsonb, $15, $16::jsonb, $17
+		)
+		ON CONFLICT (user_id)
+		DO UPDATE SET
+			telemedicine_enabled = COALESCE($3, org_staff_profiles.telemedicine_enabled),
+			telemedicine_specialty = COALESCE(NULLIF($4, ''), org_staff_profiles.telemedicine_specialty),
+			telemedicine_rate = COALESCE($5, org_staff_profiles.telemedicine_rate),
+			telemedicine_currency = COALESCE(NULLIF($6, ''), org_staff_profiles.telemedicine_currency),
+			telemedicine_modes = COALESCE($7::jsonb, org_staff_profiles.telemedicine_modes),
+			sub_specialty = COALESCE(NULLIF($8, ''), org_staff_profiles.sub_specialty),
+			years_experience = COALESCE($9, org_staff_profiles.years_experience),
+			languages_spoken = COALESCE($10::jsonb, org_staff_profiles.languages_spoken),
+			online_status = COALESCE(NULLIF($11, ''), org_staff_profiles.online_status),
+			session_capacity = COALESCE($12, org_staff_profiles.session_capacity),
+			certifications = COALESCE($13::jsonb, org_staff_profiles.certifications),
+			areas_of_expertise = COALESCE($14::jsonb, org_staff_profiles.areas_of_expertise),
+			emergency_support = COALESCE($15, org_staff_profiles.emergency_support),
+			availability_schedule = COALESCE($16::jsonb, org_staff_profiles.availability_schedule),
+			profile_completeness = COALESCE($17, org_staff_profiles.profile_completeness),
+			updated_at = NOW()
+	`, userID, organizationID, updates.TelemedicineEnabled, stringOrEmpty(updates.TelemedicineSpecialty), updates.TelemedicineRate, stringOrEmpty(updates.TelemedicineCurrency), telemedicineModesJSON,
+	  stringOrEmpty(updates.SubSpecialty), updates.YearsExperience, languagesSpokenJSON, stringOrEmpty(updates.OnlineStatus), updates.SessionCapacity, certificationsJSON, areasOfExpertiseJSON, updates.EmergencySupport, availabilityScheduleJSON, updates.ProfileCompleteness); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	items, err := r.ListOrganizationStaff(ctx, organizationID, 500)
+	if err != nil {
+		return nil, err
+	}
+	for _, item := range items {
+		if id, ok := item["id"].(string); ok && id == userID {
+			return item, nil
+		}
+	}
+	return nil, ErrNotFound
+}
+
 func (r *Repository) DeleteOrganizationStaff(ctx context.Context, organizationID, userID string) error {
 	res, err := r.db.ExecContext(ctx, `
 		DELETE FROM users
@@ -936,7 +1109,7 @@ func (r *Repository) DeleteOrganizationStaff(ctx context.Context, organizationID
 			SELECT 1
 			FROM users u
 			LEFT JOIN org_staff_profiles sp ON sp.user_id = u.id
-			WHERE u.id = $1 AND COALESCE(sp.organization_id, u.organization_id) = $2
+			WHERE u.id = $1 AND COALESCE(COALESCE(sp.organization_id, u.organization_id), u.organization_id) = $2
 		)
 	`, userID, organizationID)
 	if err != nil {

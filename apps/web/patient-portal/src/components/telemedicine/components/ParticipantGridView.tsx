@@ -1,75 +1,186 @@
-import React, { useMemo } from 'react';
+'use client';
+
+import React, { useMemo, useState } from 'react';
 import { ParticipantTile, useTracks } from '@livekit/components-react';
 import { Track } from 'livekit-client';
+import { ArrowLeftRight, Maximize2, Minimize2 } from 'lucide-react';
+
+type ParticipantEntry = {
+  id: string;
+  name: string;
+  trackRef: unknown;
+  isLocal: boolean;
+};
+
+/**
+ * Forces LiveKit's internal tile + video elements to fill their container and
+ * use object-cover so the video always fills without letterboxing.
+ * Written as a full string constant so Tailwind JIT can detect every class.
+ */
+const TILE_CSS =
+  '[&_.lk-participant-tile]:absolute [&_.lk-participant-tile]:inset-0 ' +
+  '[&_.lk-participant-tile]:h-full [&_.lk-participant-tile]:w-full ' +
+  '[&_.lk-participant-media-video]:absolute [&_.lk-participant-media-video]:inset-0 ' +
+  '[&_.lk-participant-media-video]:h-full [&_.lk-participant-media-video]:w-full ' +
+  '[&_.lk-participant-media-video]:object-cover ' +
+  '[&_.lk-camera-off-note]:hidden';
 
 export default function ParticipantGridView() {
   const tracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare]);
+
   const { remoteTracks, localTrack } = useMemo(() => {
-    const seen = new Map<string, { id: string; name: string; trackRef: unknown; isLocal: boolean }>();
-    let local: { id: string; name: string; trackRef: unknown; isLocal: boolean } | null = null;
+    const seen = new Map<string, ParticipantEntry>();
+    let local: ParticipantEntry | null = null;
 
     tracks.forEach((trackRef, index) => {
-      const participant = (trackRef as { participant?: { name?: string; identity?: string; isLocal?: boolean } }).participant;
+      const participant = (
+        trackRef as { participant?: { name?: string; identity?: string; isLocal?: boolean } }
+      ).participant;
       const identity = (participant?.identity || `participant-${index}`).trim();
       const name = (participant?.name || identity || `Participant ${index + 1}`).trim();
-      const item = { id: identity, name, trackRef, isLocal: Boolean(participant?.isLocal) };
+      const item: ParticipantEntry = {
+        id: identity,
+        name,
+        trackRef,
+        isLocal: Boolean(participant?.isLocal),
+      };
       if (item.isLocal) {
         local = item;
         return;
       }
-      if (!seen.has(identity)) {
-        seen.set(identity, item);
-      }
+      if (!seen.has(identity)) seen.set(identity, item);
     });
 
-    return {
-      remoteTracks: Array.from(seen.values()),
-      localTrack: local,
-    };
+    return { remoteTracks: Array.from(seen.values()), localTrack: local };
   }, [tracks]);
 
-  const primaryTrack = remoteTracks[0] || localTrack;
-  const secondaryTrack = localTrack && primaryTrack?.id !== localTrack.id ? localTrack : remoteTracks[1] || null;
+  const allParticipants: ParticipantEntry[] = [
+    ...(localTrack ? [localTrack] : []),
+    ...remoteTracks,
+  ];
+
+  /**
+   * spotlightId = null  →  auto layout: remote is primary, local is PiP
+   * spotlightId = id    →  that participant fills the full stage
+   */
+  const [spotlightId, setSpotlightId] = useState<string | null>(null);
+
+  // Resolve which participant is on the "stage" (fills screen)
+  const defaultPrimary = remoteTracks[0] ?? localTrack;
+  const stageParticipant =
+    (spotlightId ? allParticipants.find((p) => p.id === spotlightId) : null) ??
+    defaultPrimary;
+
+  // Everyone not on stage becomes a PiP thumbnail
+  const pipParticipants = stageParticipant
+    ? allParticipants.filter((p) => p.id !== stageParticipant.id)
+    : [];
+
+  const totalParticipants = allParticipants.length;
+
+  // ── No tracks yet ────────────────────────────────────────────────────────
+  if (!stageParticipant) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center bg-[#081022]">
+        <div className="rounded-[28px] border border-white/10 bg-slate-900/50 px-6 py-4 text-sm text-slate-300">
+          Waiting for participant video tracks…
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="relative h-full w-full bg-[#081022] p-3 md:p-4">
-      <div className="absolute left-5 top-5 z-20 rounded-full border border-white/10 bg-slate-950/80 px-3 py-1 text-[11px] font-medium text-slate-100 backdrop-blur">
-        Participants: {remoteTracks.length + (localTrack ? 1 : 0)}
+    <div className="absolute inset-0 bg-[#081022]">
+      {/* ── Stage tile (fills entire container) ───────────────────────── */}
+      <div className={`absolute inset-0 ${TILE_CSS}`}>
+        <ParticipantTile trackRef={stageParticipant.trackRef as never} />
+
+        {/* Gradient overlay so controls are readable */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/60 to-transparent" />
+
+        {/* Stage participant name */}
+        <div className="absolute left-4 top-4 z-20 rounded-full border border-white/10 bg-slate-950/80 px-3 py-1 text-[11px] font-medium text-slate-100 backdrop-blur">
+          {stageParticipant.isLocal ? 'You' : stageParticipant.name}
+        </div>
+
+        {/* Participant count */}
+        <div className="absolute right-4 top-4 z-20 rounded-full border border-white/10 bg-slate-950/80 px-3 py-1 text-[11px] font-medium text-slate-100 backdrop-blur">
+          {totalParticipants} participant{totalParticipants !== 1 ? 's' : ''}
+        </div>
+
+        {/* Exit spotlight button */}
+        {spotlightId ? (
+          <button
+            type="button"
+            onClick={() => setSpotlightId(null)}
+            className="absolute right-4 top-14 z-30 flex items-center gap-1.5 rounded-full border border-white/20 bg-slate-950/80 px-3 py-1.5 text-[11px] font-medium text-slate-100 backdrop-blur transition hover:bg-slate-800"
+          >
+            <Minimize2 className="h-3 w-3" />
+            Exit spotlight
+          </button>
+        ) : null}
+
+        {/* Spotlight button on stage tile (to lock this participant in spotlight) */}
+        {!spotlightId && pipParticipants.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => setSpotlightId(stageParticipant.id)}
+            className="absolute right-4 top-14 z-30 flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/60 px-3 py-1.5 text-[11px] font-medium text-slate-200 backdrop-blur opacity-0 transition hover:opacity-100 focus:opacity-100"
+            style={{ opacity: undefined }}
+            onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.opacity = '1')}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.opacity = '')}
+            title="Pin this view"
+          >
+            <Maximize2 className="h-3 w-3" />
+            Spotlight
+          </button>
+        ) : null}
+
+        {/* Live badge */}
+        <div className="absolute bottom-4 right-4 z-20 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-medium text-emerald-200 backdrop-blur">
+          ● Live
+        </div>
       </div>
 
-      {!primaryTrack ? (
-        <div className="flex h-full min-h-64 w-full items-center justify-center rounded-[28px] border border-white/10 bg-slate-900/50 px-4 text-sm text-slate-300">
-          Waiting for participant video tracks...
-        </div>
-      ) : (
-        <div className="relative h-full w-full overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/80 shadow-inner shadow-black/20">
-          <div className="absolute inset-0 bg-gradient-to-b from-white/0 via-white/0 to-black/30" />
-
-          <div className="absolute inset-0 p-2 md:p-3">
-            <div className="h-full w-full overflow-hidden rounded-[24px] border border-white/10 bg-black/20">
-              <ParticipantTile trackRef={primaryTrack.trackRef as never} />
+      {/* ── PiP thumbnail strip (bottom-left) ─────────────────────────── */}
+      <div className="absolute bottom-20 left-4 z-30 flex flex-row gap-2 md:bottom-24 md:left-6">
+        {pipParticipants.map((participant) => (
+          <div
+            key={participant.id}
+            className="group relative overflow-hidden rounded-2xl border border-white/20 bg-slate-950 shadow-[0_8px_32px_rgba(0,0,0,0.55)]"
+            style={{ width: '22vw', maxWidth: 220, minWidth: 140, height: '18vh', minHeight: 110 }}
+          >
+            {/* Video */}
+            <div className={`absolute inset-0 ${TILE_CSS}`}>
+              <ParticipantTile trackRef={participant.trackRef as never} />
             </div>
-          </div>
 
-          {secondaryTrack ? (
-            <div className="absolute bottom-4 left-4 z-30 h-[26%] min-h-36 w-[24%] min-w-40 overflow-hidden rounded-[24px] border border-white/15 bg-slate-950/90 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur md:bottom-6 md:left-6">
-              <div className="flex items-center justify-between border-b border-white/10 px-3 py-2 text-[11px] text-slate-100">
-                <span className="truncate">{secondaryTrack.name}</span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-slate-300">
-                  PiP
-                </span>
-              </div>
-              <div className="h-[calc(100%-2.25rem)] w-full">
-                <ParticipantTile trackRef={secondaryTrack.trackRef as never} />
-              </div>
+            {/* Gradient + controls overlay */}
+            <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-1 bg-gradient-to-t from-black/80 to-transparent px-2.5 pb-2 pt-6">
+              <span className="truncate text-[10px] font-medium text-slate-100">
+                {participant.isLocal ? 'You' : participant.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSpotlightId(participant.id)}
+                title="Make this the full-screen view"
+                className="flex shrink-0 items-center gap-1 rounded-full border border-cyan-400/40 bg-cyan-500/15 px-2 py-0.5 text-[10px] font-semibold text-cyan-200 opacity-0 transition group-hover:opacity-100 hover:bg-cyan-500/30"
+              >
+                <ArrowLeftRight className="h-3 w-3" />
+                Swap
+              </button>
             </div>
-          ) : null}
 
-          <div className="absolute bottom-4 right-4 z-20 rounded-full border border-white/10 bg-slate-950/80 px-3 py-1 text-[11px] font-medium text-slate-100 backdrop-blur md:bottom-6 md:right-6">
-            Live visit
+            {/* Click anywhere on PiP to swap */}
+            <button
+              type="button"
+              className="absolute inset-0 z-20 cursor-pointer"
+              onClick={() => setSpotlightId(participant.id)}
+              title="Click to make this the main view"
+            />
           </div>
-        </div>
-      )}
+        ))}
+      </div>
     </div>
   );
 }

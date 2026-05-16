@@ -69,3 +69,26 @@ export async function proxyPut(path: string, request: Request) {
     return NextResponse.json({ error: message }, { status });
   }
 }
+
+export async function proxyPatch(path: string, request?: Request) {
+  try {
+    const headers = await getPatientAuthHeader();
+    let bodyJson: string | undefined;
+    if (request) {
+      const text = await request.text();
+      if (text) bodyJson = text;
+    }
+    const res = await backendFetch(path, {
+      method: "PATCH",
+      headers,
+      ...(bodyJson ? { body: bodyJson } : {}),
+    });
+    const data = await parsePayload(res);
+    return NextResponse.json(data, { status: res.status });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Request failed";
+    const status = parseErrorStatus(error);
+    return NextResponse.json({ error: message }, { status });
+  }
+}
+

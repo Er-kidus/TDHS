@@ -18,6 +18,14 @@ const MOH_TIERS = [
   "national-health-system",
 ];
 
+const TIER_LABELS: Record<string, string> = {
+  "health-post": "Community Health Post",
+  "health-center": "Clinic / Health Center",
+  "primary-hospital": "Primary Hospital",
+  "general-specialized-hospital": "General/Specialized Hospital",
+  "national-health-system": "National Health System",
+};
+
 export default function RequestAccessPage() {
   const [organizationName, setOrganizationName] = useState("");
   const [organizationSlug, setOrganizationSlug] = useState("");
@@ -27,15 +35,46 @@ export default function RequestAccessPage() {
   const [licenseNumber, setLicenseNumber] = useState("");
   const [requestedTier, setRequestedTier] = useState("health-center");
   const [address, setAddress] = useState("");
-  const [services, setServices] = useState<string[]>([...DEFAULT_SERVICES]);
+  const [defaultServices, setDefaultServices] = useState<string[]>([...DEFAULT_SERVICES]);
+  const [additionalServices, setAdditionalServices] = useState<string[]>([]);
   const [requestedTemplates, setRequestedTemplates] = useState<string[]>([]);
   const [roleCategory, setRoleCategory] = useState<string>("");
   const [draftService, setDraftService] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [tiersConfig, setTiersConfig] = useState<Array<{ tier: string, default_services: string[] }>>([]);
 
-  const serviceSummary = useMemo(() => (services.length ? services.join(", ") : "No services selected"), [services]);
+  // Fetch tiers config on mount
+  useMemo(() => {
+    fetch("/api/org/tiers")
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setTiersConfig(data);
+          const initialTier = data.find(t => t.tier === requestedTier);
+          if (initialTier && initialTier.default_services) {
+            setDefaultServices(initialTier.default_services);
+          }
+        }
+      })
+      .catch(console.error);
+  }, []);
+
+  // Update default services when tier changes
+  const handleTierChange = (newTier: string) => {
+    setRequestedTier(newTier);
+    const tierMatch = tiersConfig.find(t => t.tier === newTier);
+    if (tierMatch && tierMatch.default_services) {
+      setDefaultServices(tierMatch.default_services);
+    }
+  };
+
+  const serviceSummary = useMemo(() => {
+    const all = [...defaultServices, ...additionalServices];
+    return all.length ? all.join(", ") : "No services selected";
+  }, [defaultServices, additionalServices]);
+
   const availableRoles = useMemo(
     () => (roleCategory ? EMR_STAFF_STRUCTURE.filter((role) => role.category === roleCategory) : EMR_STAFF_STRUCTURE),
     [roleCategory],
@@ -50,8 +89,8 @@ export default function RequestAccessPage() {
   function addService() {
     const value = draftService.trim();
     if (!value) return;
-    setServices((current) => {
-      if (current.some((item) => item.toLowerCase() === value.toLowerCase())) {
+    setAdditionalServices((current) => {
+      if (current.some((item) => item.toLowerCase() === value.toLowerCase()) || defaultServices.some((item) => item.toLowerCase() === value.toLowerCase())) {
         return current;
       }
       return [...current, value];
@@ -60,7 +99,7 @@ export default function RequestAccessPage() {
   }
 
   function removeService(service: string) {
-    setServices((current) => current.filter((item) => item !== service));
+    setAdditionalServices((current) => current.filter((item) => item !== service));
   }
 
   async function submitRequest(event: React.FormEvent<HTMLFormElement>) {
@@ -83,7 +122,7 @@ export default function RequestAccessPage() {
       contact_phone: contactPhone.trim(),
       license_number: licenseNumber.trim(),
       location,
-      requested_services: services,
+      requested_services: [...defaultServices, ...additionalServices],
       selected_staff_templates: requestedTemplates,
       requested_tier: requestedTier,
     };
@@ -109,7 +148,7 @@ export default function RequestAccessPage() {
       setLicenseNumber("");
       setRequestedTier("health-center");
       setAddress("");
-      setServices([...DEFAULT_SERVICES]);
+      setAdditionalServices([]);
       setRequestedTemplates([]);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to submit access request");
@@ -161,9 +200,9 @@ export default function RequestAccessPage() {
 
         <label className="space-y-1 text-sm">
           <span>Requested tier</span>
-          <select className="h-10 w-full rounded-lg border px-3" value={requestedTier} onChange={(event) => setRequestedTier(event.target.value)}>
+          <select className="h-10 w-full rounded-lg border px-3" value={requestedTier} onChange={(event) => handleTierChange(event.target.value)}>
             {MOH_TIERS.map((tier) => (
-              <option key={tier} value={tier}>{tier}</option>
+              <option key={tier} value={tier}>{TIER_LABELS[tier] || tier}</option>
             ))}
           </select>
         </label>
@@ -174,19 +213,28 @@ export default function RequestAccessPage() {
         </label>
 
         <div className="space-y-2 md:col-span-2">
-          <div className="text-sm">Requested services</div>
-          <div className="flex gap-2">
-            <input className="h-10 flex-1 rounded-lg border px-3" value={draftService} onChange={(event) => setDraftService(event.target.value)} placeholder="Add a service" />
-            <button type="button" onClick={addService} className="rounded-lg border px-4 text-sm hover:bg-accent">Add</button>
+          <div className="text-sm font-medium">Included Services (Tier Defaults)</div>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {defaultServices.map((service) => (
+              <span key={service} className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground border">
+                {service}
+              </span>
+            ))}
           </div>
-          <div className="flex flex-wrap gap-2">
-            {services.map((service) => (
-              <button key={service} type="button" onClick={() => removeService(service)} className="rounded-full border px-3 py-1 text-xs hover:bg-accent">
+
+          <div className="text-sm font-medium">Additional Services Request</div>
+          <p className="text-xs text-muted-foreground mb-2">Request additional capabilities beyond your tier defaults. These require super admin approval.</p>
+          <div className="flex gap-2">
+            <input className="h-10 flex-1 rounded-lg border px-3" value={draftService} onChange={(event) => setDraftService(event.target.value)} placeholder="E.g., Specialized Dialysis, Telemedicine" />
+            <button type="button" onClick={addService} className="rounded-lg border px-4 text-sm hover:bg-accent">Add Request</button>
+          </div>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {additionalServices.map((service) => (
+              <button key={service} type="button" onClick={() => removeService(service)} className="rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-xs text-primary hover:bg-primary/10">
                 {service} x
               </button>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">{serviceSummary}</p>
         </div>
 
         <div className="space-y-2 md:col-span-2">

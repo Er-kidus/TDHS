@@ -10,10 +10,12 @@ type Services struct {
 	Auth            *AuthService
 	Patients        *PatientService
 	Appointments    *AppointmentService
-	PatientPortal   *PatientPortalService
-	OrgApplications *OrgApplicationService
-	SDS             *SDSService
+	PatientPortal    *PatientPortalService
+	OrgApplications  *OrgApplicationService
+	SDS              *SDSService
 	PatientDashboard *PatientDashboardService
+	Community        *CommunityService
+	Pharmacy         *PharmacyService
 }
 
 func New(cfg *config.Config, repo *repository.Repository) *Services {
@@ -27,9 +29,11 @@ func New(cfg *config.Config, repo *repository.Repository) *Services {
 		OrgApplications: NewOrgApplicationService(repo.DB()),
 		SDS:             NewSDSService(repo),
 		PatientDashboard: NewPatientDashboardService(
-	NewPatientService(repo),
-	NewAppointmentService(repo),
-	NewPatientPortalService(cfg, repo),
-),
+			NewPatientService(repo),
+			NewAppointmentService(repo),
+			NewPatientPortalService(cfg, repo),
+		),
+		Community: NewCommunityService(repo),
+		Pharmacy:  NewPharmacyService(repo),
 	}
 }

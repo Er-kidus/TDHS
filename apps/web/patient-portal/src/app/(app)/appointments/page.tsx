@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SERVICE_DEFINITIONS, type Priority } from "@/lib/sds";
+import { AiBookingModal } from "@/components/ai/AiBookingModal";
+import { Sparkles } from "lucide-react";
 
 type AppointmentStatus =
   | "proposed"
@@ -142,19 +144,27 @@ export default function AppointmentsPage() {
   const [items, setItems] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<AppointmentTab>("upcoming");
-  const [view, setView] = useState<AppointmentView>("list");
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | AppointmentStatus>("all");
-  const [categoryFilter, setCategoryFilter] = useState<"all" | string>("all");
-  const [dateFilter, setDateFilter] = useState("");
+  
+  const [tab, setTab] = useState<AppointmentTab>('upcoming');
+  const [view, setView] = useState<'list' | 'calendar'>('list');
+  const [statusFilter, setStatusFilter] = useState<'all' | AppointmentStatus>('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('');
+  const [search, setSearch] = useState('');
+  
   const [details, setDetails] = useState<Appointment | null>(null);
-  const [rescheduleAt, setRescheduleAt] = useState("");
-
+  const [rescheduleAt, setRescheduleAt] = useState('');
+  
   const [formOpen, setFormOpen] = useState(false);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+
+  // GPS location
+  const [patientLocation, setPatientLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [locationStatus, setLocationStatus] = useState<"idle" | "loading" | "granted" | "denied">("idle");
   const [serviceId, setServiceId] = useState(SERVICE_DEFINITIONS[0].id);
   const [hospitalOptions, setHospitalOptions] = useState<HospitalOption[]>([]);
   const [facilityId, setFacilityId] = useState<string>("");
+  const [orgSearch, setOrgSearch] = useState("");
   const [scheduledAt, setScheduledAt] = useState(new Date(Date.now() + 3600000).toISOString().slice(0, 16));
   const [description, setDescription] = useState("In-person visit");
   const [reason, setReason] = useState("");
@@ -171,27 +181,56 @@ export default function AppointmentsPage() {
       duration_minutes: item.durationMinutes,
     }))
   );
+
+  // Request GPS on mount
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+    setLocationStatus("loading");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setPatientLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+        setLocationStatus("granted");
+      },
+      () => setLocationStatus("denied"),
+      { timeout: 8000 }
+    );
+  }, []);
+
   const selectedFacility = hospitalOptions.find((item) => item.id === facilityId) ?? hospitalOptions[0];
+  // Filter orgs by selected service type, org search, sorted by patient GPS distance
+  const selectedServiceType = serviceOptions.find((s) => s.id === serviceId)?.serviceType ?? "";
+  const filteredOrgs = useMemo(() => {
+    let orgs = hospitalOptions;
+    // Filter by service if org has services listed
+    if (selectedServiceType) {
+      const matching = orgs.filter(
+        (o) => o.services.length === 0 || o.services.some((s) => s.toLowerCase().includes(selectedServiceType.toLowerCase().replace(/_/g, " ")) || selectedServiceType.toLowerCase().includes(s.toLowerCase().replace(/ /g, "_")))
+      );
+      if (matching.length > 0) orgs = matching;
+    }
+    // Text search
+    if (orgSearch.trim()) {
+      const q = orgSearch.toLowerCase();
+      orgs = orgs.filter((o) => o.name.toLowerCase().includes(q) || o.address?.toLowerCase().includes(q));
+    }
+    // Sort by patient GPS distance
+    if (patientLocation) {
+      return [...orgs].sort((a, b) => {
+        if (a.latitude === undefined || b.latitude === undefined) return 0;
+        return (
+          toDistanceKm(patientLocation.lat, patientLocation.lon, a.latitude!, a.longitude!) -
+          toDistanceKm(patientLocation.lat, patientLocation.lon, b.latitude!, b.longitude!)
+        );
+      });
+    }
+    return orgs;
+  }, [hospitalOptions, selectedServiceType, orgSearch, patientLocation]);
+
   const nearbyHospitals = useMemo(() => {
     if (!selectedFacility) return [] as HospitalOption[];
-    const rest = hospitalOptions.filter((item) => item.id !== selectedFacility.id);
-    return [...rest].sort((a, b) => {
-      if (
-        selectedFacility.latitude === undefined ||
-        selectedFacility.longitude === undefined ||
-        a.latitude === undefined ||
-        a.longitude === undefined ||
-        b.latitude === undefined ||
-        b.longitude === undefined
-      ) {
-        return a.name.localeCompare(b.name);
-      }
-      return (
-        toDistanceKm(selectedFacility.latitude, selectedFacility.longitude, a.latitude, a.longitude) -
-        toDistanceKm(selectedFacility.latitude, selectedFacility.longitude, b.latitude, b.longitude)
-      );
-    });
-  }, [hospitalOptions, selectedFacility]);
+    const rest = filteredOrgs.filter((item) => item.id !== selectedFacility.id);
+    return rest;
+  }, [filteredOrgs, selectedFacility]);
   const mapEmbedUrl =
     selectedFacility && selectedFacility.latitude !== undefined && selectedFacility.longitude !== undefined
       ? `https://www.openstreetmap.org/export/embed.html?bbox=${selectedFacility.longitude - 0.03}%2C${selectedFacility.latitude - 0.02}%2C${selectedFacility.longitude + 0.03}%2C${selectedFacility.latitude + 0.02}&layer=mapnik&marker=${selectedFacility.latitude}%2C${selectedFacility.longitude}`
@@ -487,6 +526,9 @@ export default function AppointmentsPage() {
           <button onClick={() => setFormOpen((prev) => !prev)} className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground">
             + Book Appointment
           </button>
+          <button onClick={() => setAiModalOpen(true)} className="rounded-lg bg-sky-500 hover:bg-sky-600 px-3 py-2 text-sm font-medium text-white inline-flex items-center gap-1.5 transition">
+            <Sparkles className="h-4 w-4" /> Book with AI
+          </button>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -519,26 +561,63 @@ export default function AppointmentsPage() {
 
         {formOpen ? (
           <div className="mt-4 grid gap-3 rounded-xl border border-border bg-background p-4 md:grid-cols-2">
-            <select aria-label="Select service" value={serviceId} onChange={(e) => setServiceId(e.target.value)} className="h-10 rounded-lg border border-border bg-card px-3 text-sm">
+            {locationStatus === "granted" && patientLocation ? (
+              <div className="rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs text-green-700 md:col-span-2">
+                📍 Location detected — showing nearest organizations first
+              </div>
+            ) : locationStatus === "denied" ? (
+              <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-700 md:col-span-2">
+                Location access denied — organizations sorted by name. Enable location for nearest-first sorting.
+              </div>
+            ) : null}
+            <select aria-label="Select service" value={serviceId} onChange={(e) => { setServiceId(e.target.value); setFacilityId(""); setSelectedNearbyHospitalId(""); }} className="h-10 rounded-lg border border-border bg-card px-3 text-sm">
               {serviceOptions.map((item) => (
                 <option key={item.id} value={item.id}>{item.name}</option>
               ))}
             </select>
-            <select
-              aria-label="Select facility"
-              value={facilityId}
-              onChange={(e) => {
-                setFacilityId(e.target.value);
-                setSelectedNearbyHospitalId("");
-              }}
+            <input
+              placeholder="Search organization..."
+              value={orgSearch}
+              onChange={(e) => setOrgSearch(e.target.value)}
               className="h-10 rounded-lg border border-border bg-card px-3 text-sm"
-              disabled={hospitalOptions.length === 0}
-            >
-              {hospitalOptions.length === 0 ? <option value="">No registered hospitals available</option> : null}
-              {hospitalOptions.map((item) => (
-                <option key={item.id} value={item.id}>{item.name} ({item.slug})</option>
-              ))}
-            </select>
+            />
+            <div className="md:col-span-2">
+              <p className="mb-2 text-xs font-medium text-muted-foreground">
+                Select organization ({filteredOrgs.length} available{selectedServiceType ? ` for ${selectedServiceType.replace(/_/g, " ")}` : ""})
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredOrgs.length === 0 ? (
+                  <p className="col-span-full text-xs text-muted-foreground">No organizations match. Try a different service or clear the search.</p>
+                ) : null}
+                {filteredOrgs.map((org) => {
+                  const dist = patientLocation && org.latitude !== undefined
+                    ? toDistanceKm(patientLocation.lat, patientLocation.lon, org.latitude!, org.longitude!)
+                    : undefined;
+                  const isSelected = (facilityId || filteredOrgs[0]?.id) === org.id;
+                  return (
+                    <button
+                      key={org.id}
+                      type="button"
+                      onClick={() => { setFacilityId(org.id); setSelectedNearbyHospitalId(""); }}
+                      className={`rounded-xl border p-3 text-left transition-all ${
+                        isSelected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border bg-card hover:bg-muted/40"
+                      }`}
+                    >
+                      <p className="text-sm font-medium">{org.name}</p>
+                      {org.address ? <p className="mt-0.5 text-[11px] text-muted-foreground">{org.address}</p> : null}
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {dist !== undefined ? (
+                          <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-600">{dist.toFixed(1)} km</span>
+                        ) : null}
+                        {org.services.slice(0, 2).map((s) => (
+                          <span key={s} className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{s}</span>
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <input aria-label="Select appointment date and time" type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} className="h-10 rounded-lg border border-border bg-card px-3 text-sm" />
             <select aria-label="Select priority" value={priority} onChange={(e) => setPriority(e.target.value as Priority)} className="h-10 rounded-lg border border-border bg-card px-3 text-sm">
               <option value="routine">Routine</option>
@@ -771,6 +850,13 @@ export default function AppointmentsPage() {
           </div>
         </div>
       ) : null}
+
+      {aiModalOpen && (
+        <AiBookingModal
+          onClose={() => setAiModalOpen(false)}
+          onBooked={load}
+        />
+      )}
     </div>
   );
 }

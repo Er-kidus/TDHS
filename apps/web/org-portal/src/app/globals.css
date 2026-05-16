@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import "../../node_modules/tailwindcss/index.css";
 
 :root {
@@ -53,7 +54,13 @@
   --shadow-md: 0 4px 12px -2px hsl(210 24% 16% / 0.06);
   --shadow-lg: 0 8px 24px -4px hsl(210 24% 16% / 0.08);
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans", "Liberation Sans", sans-serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+
+  /* AI Urgency tokens */
+  --urgency-emergent: 0 84% 48%;
+  --urgency-urgent: 38 92% 50%;
+  --urgency-moderate: 210 80% 52%;
+  --urgency-low: 152 60% 40%;
 }
 
 @theme inline {
@@ -201,4 +208,8 @@ body {
       transform: translateY(-4px);
     }
   }
+  .urgency-emergent { background: hsl(var(--urgency-emergent) / 0.1); color: hsl(var(--urgency-emergent)); border-color: hsl(var(--urgency-emergent) / 0.25); }
+  .urgency-urgent    { background: hsl(var(--urgency-urgent) / 0.1);   color: hsl(var(--urgency-urgent));   border-color: hsl(var(--urgency-urgent) / 0.25); }
+  .urgency-moderate  { background: hsl(var(--urgency-moderate) / 0.1); color: hsl(var(--urgency-moderate)); border-color: hsl(var(--urgency-moderate) / 0.25); }
+  .urgency-low       { background: hsl(var(--urgency-low) / 0.1);      color: hsl(var(--urgency-low));      border-color: hsl(var(--urgency-low) / 0.25); }
 }

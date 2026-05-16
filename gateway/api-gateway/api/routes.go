@@ -46,11 +46,18 @@ func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
 	mux.HandleFunc("POST /documents", h.RequirePatient(h.CreateDocument))
 	mux.HandleFunc("GET /telemedicine/sessions", h.RequirePatient(h.ListTelemedicineSessions))
 	mux.HandleFunc("POST /telemedicine/sessions", h.RequirePatient(h.CreateTelemedicineSession))
+	mux.HandleFunc("GET /telemedicine/sessions/{id}", h.RequireAny(h.GetTelemedicineSession))
+	mux.HandleFunc("PATCH /telemedicine/sessions/{id}/end", h.RequireAny(h.EndTelemedicineSession))
+	mux.HandleFunc("PATCH /telemedicine/sessions/{id}/cancel", h.RequirePatient(h.CancelTelemedicineSession))
 	mux.HandleFunc("POST /telemedicine/livekit/token", h.RequireAny(h.IssueLiveKitToken))
 	mux.HandleFunc("GET /telemedicine/sessions/{id}/transcript-lines", h.RequireAny(h.ListTelemedicineTranscriptLines))
 	mux.HandleFunc("POST /telemedicine/sessions/{id}/transcript-lines", h.RequireAny(h.CreateTelemedicineTranscriptLine))
 	mux.HandleFunc("POST /telemedicine/sessions/{id}/summary", h.RequireAny(h.CreateTelemedicineSummary))
 	mux.HandleFunc("GET /telemedicine/artifacts", h.RequirePatient(h.ListTelemedicineArtifacts))
+	// AI-matching: filter online doctors by specialty & urgency
+	mux.HandleFunc("GET /doctors/available", h.RequireAny(h.GetAvailableDoctorsBySpecialty))
+	// Doctor online status self-update
+	mux.HandleFunc("PATCH /org/me/online-status", h.RequireOrgAnyRole("doctor", "nurse")(h.UpdateDoctorOnlineStatus))
 	mux.HandleFunc("GET /pharmacy/medications", h.RequirePatient(h.ListPharmacyMedications))
 	mux.HandleFunc("GET /pharmacy/pharmacies", h.RequirePatient(h.ListPharmacies))
 	mux.HandleFunc("GET /pharmacy/orders", h.RequirePatient(h.ListPharmacyOrders))
@@ -60,11 +67,15 @@ func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
 	mux.HandleFunc("POST /ai/learning-samples", h.RequirePatient(h.CreateAILearningSample))
 	mux.HandleFunc("POST /ai/router", h.RequirePatient(h.AIRouter))
 	mux.HandleFunc("POST /appointments", h.RequireAny(h.CreateAppointment))
+	mux.HandleFunc("POST /appointments/ai-schedule", h.RequirePatient(h.AIScheduleAppointment))
 	mux.HandleFunc("GET /appointments", h.RequireAny(h.ListAppointments))
 	mux.HandleFunc("GET /appointments/{id}", h.RequireAny(h.GetAppointment))
 	mux.HandleFunc("PUT /appointments/{id}", h.RequireAny(h.UpdateAppointment))
 	mux.HandleFunc("DELETE /appointments/{id}", h.RequireAny(h.DeleteAppointment))
 	mux.HandleFunc("POST /appointments/{id}/assign", h.RequireOrgAnyRole("admin", "superadmin")(h.AssignAppointmentResources))
+	mux.HandleFunc("GET /medical-records", h.RequirePatient(h.GetMedicalRecords))
+	mux.HandleFunc("GET /patient/lab-orders", h.RequirePatient(h.ListPatientLabOrders))
+	mux.HandleFunc("GET /patient/doctor-prescriptions", h.RequirePatient(h.ListPatientDoctorPrescriptions))
 	mux.HandleFunc("GET /services", h.RequireAny(h.ListServices))
 	mux.HandleFunc("POST /services", h.RequireOrgAnyRole("admin", "superadmin")(h.CreateService))
 	mux.HandleFunc("PUT /services/{id}", h.RequireOrgAnyRole("admin", "superadmin")(h.UpdateService))
@@ -97,6 +108,7 @@ func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
 	mux.HandleFunc("PATCH /org/applications/{id}/domain", h.RequireOrgRole("superadmin")(h.OrgSetApplicationDomain))
 	mux.HandleFunc("GET /org/organizations", h.RequireOrgRole("superadmin")(h.OrgListOrganizations))
 	mux.HandleFunc("GET /org/tiers", h.RequireOrgRole("superadmin")(h.OrgListOrganizationTiers))
+	mux.HandleFunc("PUT /org/tiers/{tier}/defaults", h.RequireOrgRole("superadmin")(h.OrgUpdateOrganizationTierDefaults))
 	mux.HandleFunc("GET /org/organizations/manage", h.RequireOrgRole("superadmin")(h.OrgListOrganizationsManaged))
 	mux.HandleFunc("GET /org/organizations/{id}/configuration", h.RequireOrgAnyRole("admin", "superadmin")(h.OrgGetOrganizationConfiguration))
 	mux.HandleFunc("PUT /org/organizations/{id}/configuration", h.RequireOrgAnyRole("admin", "superadmin")(h.OrgUpsertOrganizationConfiguration))
@@ -116,6 +128,10 @@ func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
 	mux.HandleFunc("POST /org/users/{id}/reset-password", h.RequireOrgRole("superadmin")(h.OrgResetUserPassword))
 	mux.HandleFunc("GET /org/system/overview", h.RequireOrgRole("superadmin")(h.OrgSystemOverview))
 	mux.HandleFunc("GET /org/system/roles", h.RequireOrgRole("superadmin")(h.OrgListSystemRoles))
+	mux.HandleFunc("GET /org/system/licenses", h.RequireOrgRole("superadmin")(h.OrgGetLicenses))
+	mux.HandleFunc("POST /org/system/ngrok-config", h.RequireOrgRole("superadmin")(h.OrgSetNgrokConfig))
+	mux.HandleFunc("GET /org/system/ai-config", h.RequireOrgRole("superadmin")(h.OrgGetAiConfig))
+	mux.HandleFunc("POST /org/system/ai-config", h.RequireOrgRole("superadmin")(h.OrgSetAiConfig))
 	mux.HandleFunc("GET /org/doctors", h.RequireOrgAnyRole("admin", "doctor", "nurse", "staff", "superadmin")(h.OrgListDoctors))
 	mux.HandleFunc("POST /org/doctors", h.RequireOrgAnyRole("admin", "superadmin")(h.OrgCreateDoctor))
 	mux.HandleFunc("GET /org/pharmacies", h.RequireOrgAnyRole("admin", "superadmin")(h.OrgListPharmacies))
@@ -125,6 +141,31 @@ func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
 	mux.HandleFunc("POST /org/telemedicine/queue/accept", h.RequireOrgAnyRole("admin", "doctor", "nurse", "superadmin")(h.OrgAcceptTelemedicineSession))
 	mux.HandleFunc("GET /org/ai/models", h.RequireOrgRole("superadmin")(h.ListAIModels))
 	mux.HandleFunc("PUT /org/ai/models/status", h.RequireOrgRole("superadmin")(h.SetAIModelStatus))
+
+	// Org clinical care — Pregnancy
+	mux.HandleFunc("GET /org/care/pregnancy", h.RequireOrgAnyRole("admin", "doctor", "nurse", "superadmin")(h.OrgListPregnancyEpisodes))
+	mux.HandleFunc("POST /org/care/pregnancy", h.RequireOrgAnyRole("admin", "doctor", "nurse", "superadmin")(h.OrgCreatePregnancyEpisode))
+
+	// Org clinical care — Chronic
+	mux.HandleFunc("GET /org/care/chronic", h.RequireOrgAnyRole("admin", "doctor", "nurse", "superadmin")(h.OrgListChronicEnrollments))
+	mux.HandleFunc("POST /org/care/chronic", h.RequireOrgAnyRole("admin", "doctor", "nurse", "superadmin")(h.OrgCreateChronicEnrollment))
+
+	// Org Community Health
+	mux.HandleFunc("GET /org/community/areas", h.RequireOrgAnyRole("admin", "superadmin", "nurse")(h.OrgListCommunityAreas))
+	mux.HandleFunc("POST /org/community/areas", h.RequireOrgAnyRole("admin", "superadmin")(h.OrgCreateCommunityArea))
+	mux.HandleFunc("GET /org/community/households", h.RequireOrgAnyRole("admin", "superadmin", "nurse")(h.OrgListHouseholds))
+	mux.HandleFunc("POST /org/community/households", h.RequireOrgAnyRole("admin", "superadmin", "nurse")(h.OrgCreateHousehold))
+	mux.HandleFunc("GET /org/community/households/{id}/members", h.RequireOrgAnyRole("admin", "superadmin", "nurse")(h.OrgListHouseholdMembers))
+	mux.HandleFunc("POST /org/community/households/{id}/members", h.RequireOrgAnyRole("admin", "superadmin", "nurse")(h.OrgAddHouseholdMember))
+	mux.HandleFunc("GET /org/community/visits", h.RequireOrgAnyRole("admin", "superadmin", "nurse")(h.OrgListCommunityVisits))
+	mux.HandleFunc("POST /org/community/visits", h.RequireOrgAnyRole("admin", "superadmin", "nurse")(h.OrgLogCommunityVisit))
+
+	// Pharmacy
+	mux.HandleFunc("GET /medications", h.RequireAny(h.ListMedications))
+	mux.HandleFunc("GET /org/pharmacy/inventory", h.RequireOrgAnyRole("admin", "pharmacist", "superadmin")(h.OrgListInventory))
+	mux.HandleFunc("POST /org/pharmacy/inventory", h.RequireOrgAnyRole("admin", "pharmacist", "superadmin")(h.OrgUpdateInventory))
+	mux.HandleFunc("POST /org/pharmacy/fulfillments", h.RequireOrgAnyRole("admin", "pharmacist", "superadmin")(h.OrgLogFulfillment))
+	mux.HandleFunc("GET /patient/pharmacies/search", h.RequirePatient(h.PatientSearchPharmacies))
 
 	return middleware.CORS(cfg, mux)
 }

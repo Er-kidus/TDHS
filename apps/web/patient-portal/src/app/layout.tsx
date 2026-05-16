@@ -1,25 +1,9 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Noto_Sans_Ethiopic } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import { AppProviders } from "@/components/AppProviders";
 import { UiSettingsApplier } from "@/components/UiSettingsApplier";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const notoSansEthiopic = Noto_Sans_Ethiopic({
-  variable: "--font-noto-ethiopic",
-  subsets: ["ethiopic", "latin"],
-});
 
 export const metadata: Metadata = {
   title: "Tenadam Patient Portal",
@@ -34,7 +18,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${notoSansEthiopic.variable} h-full antialiased`}
+      className="font-sans h-full antialiased"
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>

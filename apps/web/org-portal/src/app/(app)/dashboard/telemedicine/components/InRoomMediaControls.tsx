@@ -7,11 +7,12 @@ import {
 import {
   Mic,
   MicOff,
+  PhoneOff,
   Video,
   VideoOff,
 } from "lucide-react";
 
-export function InRoomMediaControls() {
+export function InRoomMediaControls({ onEndSession }: { onEndSession?: () => void } = {}) {
   const { localParticipant } = useLocalParticipant();
   const connectionState = useConnectionState();
   const isConnected =
@@ -19,73 +20,86 @@ export function InRoomMediaControls() {
     connectionState === "reconnecting" ||
     connectionState === "signalReconnecting";
 
-  const mediaCaptureSupported =
-    typeof window !== "undefined" &&
-    Boolean(
-      window.isSecureContext &&
-      window.navigator?.mediaDevices?.getUserMedia
-    );
-  const micEnabled = Boolean(
-    localParticipant?.isMicrophoneEnabled
-  );
-  const cameraEnabled = Boolean(
-    localParticipant?.isCameraEnabled
-  );
+  const micEnabled = Boolean(localParticipant?.isMicrophoneEnabled);
+  const cameraEnabled = Boolean(localParticipant?.isCameraEnabled);
 
   async function toggleMic() {
     if (!localParticipant) return;
-
     try {
-      await localParticipant.setMicrophoneEnabled(
-        !micEnabled
-      );
+      await localParticipant.setMicrophoneEnabled(!micEnabled);
     } catch {
-      // Keep UI responsive even when local media
-      // toggling fails.
+      // Keep UI responsive even when media toggling fails
     }
   }
 
   async function toggleCamera() {
     if (!localParticipant) return;
-
     try {
-      await localParticipant.setCameraEnabled(
-        !cameraEnabled
-      );
+      await localParticipant.setCameraEnabled(!cameraEnabled);
     } catch {
-      // Keep UI responsive even when local media
-      // toggling fails.
+      // Keep UI responsive even when media toggling fails
     }
   }
 
   return (
-    <div className="pointer-events-none absolute inset-x-3 bottom-16 z-20 flex items-center justify-center gap-2 md:inset-x-auto md:bottom-4 md:left-4 md:justify-start">
-      <button
-        type="button"
-        onClick={() => void toggleMic()}
-        disabled={!isConnected || !mediaCaptureSupported}
-        className="pointer-events-auto inline-flex min-h-10 items-center gap-2 rounded-full border border-border bg-background/95 px-4 py-2 text-sm font-medium backdrop-blur"
-      >
-        {micEnabled ? (
-          <Mic className="h-3.5 w-3.5" />
-        ) : (
-          <MicOff className="h-3.5 w-3.5" />
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-center justify-center gap-2 pb-4 md:pb-5">
+      <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-slate-950/90 px-3 py-2 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur">
+        {/* Mic toggle */}
+        <button
+          type="button"
+          onClick={() => void toggleMic()}
+          disabled={!isConnected}
+          title={micEnabled ? "Mute microphone" : "Unmute microphone"}
+          className={`inline-flex min-h-10 items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition disabled:opacity-50 ${
+            micEnabled
+              ? "bg-white/10 text-white hover:bg-white/20"
+              : "bg-rose-600 text-white hover:bg-rose-700"
+          }`}
+        >
+          {micEnabled ? (
+            <Mic className="h-4 w-4" />
+          ) : (
+            <MicOff className="h-4 w-4" />
+          )}
+          <span className="hidden sm:inline">{micEnabled ? "Mic on" : "Mic off"}</span>
+        </button>
+
+        {/* Camera toggle */}
+        <button
+          type="button"
+          onClick={() => void toggleCamera()}
+          disabled={!isConnected}
+          title={cameraEnabled ? "Turn off camera" : "Turn on camera"}
+          className={`inline-flex min-h-10 items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition disabled:opacity-50 ${
+            cameraEnabled
+              ? "bg-white/10 text-white hover:bg-white/20"
+              : "bg-rose-600 text-white hover:bg-rose-700"
+          }`}
+        >
+          {cameraEnabled ? (
+            <Video className="h-4 w-4" />
+          ) : (
+            <VideoOff className="h-4 w-4" />
+          )}
+          <span className="hidden sm:inline">{cameraEnabled ? "Camera on" : "Camera off"}</span>
+        </button>
+
+        {/* Divider */}
+        <div className="h-6 w-px bg-white/10" />
+
+        {/* End session */}
+        {onEndSession && (
+          <button
+            type="button"
+            onClick={onEndSession}
+            title="End session"
+            className="inline-flex min-h-10 items-center gap-2 rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700"
+          >
+            <PhoneOff className="h-4 w-4" />
+            <span className="hidden sm:inline">End</span>
+          </button>
         )}
-        {micEnabled ? "Mic on" : "Mic off"}
-      </button>
-      <button
-        type="button"
-        onClick={() => void toggleCamera()}
-        disabled={!isConnected || !mediaCaptureSupported}
-        className="pointer-events-auto inline-flex min-h-10 items-center gap-2 rounded-full border border-border bg-background/95 px-4 py-2 text-sm font-medium backdrop-blur"
-      >
-        {cameraEnabled ? (
-          <Video className="h-3.5 w-3.5" />
-        ) : (
-          <VideoOff className="h-3.5 w-3.5" />
-        )}
-        {cameraEnabled ? "Camera on" : "Camera off"}
-      </button>
+      </div>
     </div>
   );
 }

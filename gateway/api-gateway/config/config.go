@@ -36,7 +36,7 @@ func Load() *Config {
 			if v := os.Getenv("GEMINI_MODEL"); v != "" {
 				return v
 			}
-			return "gemini-1.5-flash"
+			return "gemini-2.5-flash"
 		}(),
 	}
 }

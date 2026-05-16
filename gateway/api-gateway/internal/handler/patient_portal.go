@@ -3,7 +3,10 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/tenadam/api-gateway/internal/service"
 )
 
 func parseLimit(r *http.Request, fallback int) int {
@@ -21,6 +24,44 @@ func (h *Handler) ListDoctors(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.writeJSON(w, http.StatusOK, items)
+}
+
+// GetAvailableDoctorsBySpecialty filters online, telemedicine-enabled doctors by specialty
+// and urgency level. Query params: specialty (string), urgency (string), limit (int).
+func (h *Handler) GetAvailableDoctorsBySpecialty(w http.ResponseWriter, r *http.Request) {
+	specialty := strings.TrimSpace(r.URL.Query().Get("specialty"))
+	urgency := strings.TrimSpace(r.URL.Query().Get("urgency"))
+	limit := parseLimit(r, 20)
+
+	items, err := h.svcs.PatientPortal.GetAvailableDoctorsBySpecialty(r.Context(), specialty, urgency, limit)
+	if err != nil {
+		h.errorJSON(w, http.StatusInternalServerError, "failed to query available doctors")
+		return
+	}
+	h.writeJSON(w, http.StatusOK, items)
+}
+
+// UpdateDoctorOnlineStatus allows a doctor/nurse to set their own online_status.
+// Body: { "status": "online" | "busy" | "offline" }
+func (h *Handler) UpdateDoctorOnlineStatus(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Status string `json:"status"`
+	}
+	if err := h.readJSON(w, r, &req); err != nil {
+		h.errorJSON(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	allowed := map[string]bool{"online": true, "busy": true, "offline": true}
+	if !allowed[req.Status] {
+		h.errorJSON(w, http.StatusBadRequest, "status must be one of: online, busy, offline")
+		return
+	}
+	userID := subjectID(r.Context())
+	if err := h.svcs.PatientPortal.UpdateDoctorOnlineStatus(r.Context(), userID, req.Status); err != nil {
+		h.errorJSON(w, http.StatusInternalServerError, "failed to update online status")
+		return
+	}
+	h.writeJSON(w, http.StatusOK, map[string]string{"status": req.Status})
 }
 
 func (h *Handler) ListPrescriptions(w http.ResponseWriter, r *http.Request) {
@@ -102,7 +143,27 @@ func (h *Handler) CreateMessage(w http.ResponseWriter, r *http.Request) {
 		h.errorJSON(w, http.StatusBadRequest, "content is required")
 		return
 	}
-	item, err := h.svcs.PatientPortal.CreateMessage(r.Context(), subjectID(r.Context()), req.Sender, req.Channel, req.Content, req.AttachmentURL)
+	
+	patientID := subjectID(r.Context())
+	typ := tokenType(r.Context())
+	
+	if typ == service.TokenTypeOrg {
+		if strings.HasPrefix(req.Channel, "telemedicine:") {
+			sessionID := strings.TrimPrefix(req.Channel, "telemedicine:")
+			session, err := h.svcs.PatientPortal.GetTelemedicineSessionByID(r.Context(), sessionID)
+			if err == nil {
+				patientID = session.PatientID
+			} else {
+				h.errorJSON(w, http.StatusBadRequest, "invalid telemedicine session")
+				return
+			}
+		} else {
+			h.errorJSON(w, http.StatusBadRequest, "org users can only send messages to telemedicine channels")
+			return
+		}
+	}
+	
+	item, err := h.svcs.PatientPortal.CreateMessage(r.Context(), patientID, req.Sender, req.Channel, req.Content, req.AttachmentURL)
 	if err != nil {
 		h.errorJSON(w, http.StatusInternalServerError, "failed to create message")
 		return
@@ -154,6 +215,9 @@ type createTelemedicineSessionRequest struct {
 	RequestedAmount   float64 `json:"requested_amount"`
 	RequestedCurrency string  `json:"requested_currency"`
 	Notes             *string `json:"notes"`
+	AIUrgencyLevel    *string `json:"ai_urgency_level"`
+	AITriageScore     *int    `json:"ai_triage_score"`
+	AISpecialty       *string `json:"ai_specialty"`
 }
 
 func (h *Handler) ListTelemedicineSessions(w http.ResponseWriter, r *http.Request) {
@@ -190,7 +254,7 @@ func (h *Handler) CreateTelemedicineSession(w http.ResponseWriter, r *http.Reque
 		h.errorJSON(w, http.StatusBadRequest, "scheduled_at must be RFC3339")
 		return
 	}
-	item, err := h.svcs.PatientPortal.CreateTelemedicineSession(r.Context(), subjectID(r.Context()), req.DoctorID, req.DoctorName, when, req.PreferredMode, req.RequestedAmount, req.RequestedCurrency, req.Notes)
+	item, err := h.svcs.PatientPortal.CreateTelemedicineSession(r.Context(), subjectID(r.Context()), req.DoctorID, req.DoctorName, when, req.PreferredMode, req.RequestedAmount, req.RequestedCurrency, req.Notes, req.AIUrgencyLevel, req.AITriageScore, req.AISpecialty)
 	if err != nil {
 		h.errorJSON(w, http.StatusInternalServerError, "failed to create telemedicine session")
 		return
@@ -487,3 +551,72 @@ func (h *Handler) OrgCreatePharmacy(w http.ResponseWriter, r *http.Request) {
 	}
 	h.writeJSON(w, http.StatusCreated, item)
 }
+
+// ── Session lifecycle ──────────────────────────────────────────────────────
+
+// GetTelemedicineSession returns a single session.
+// Patients can only fetch their own; org users can fetch any.
+func (h *Handler) GetTelemedicineSession(w http.ResponseWriter, r *http.Request) {
+	sessionID := r.PathValue("id")
+	session, err := h.svcs.PatientPortal.GetTelemedicineSessionByID(r.Context(), sessionID)
+	if err != nil {
+		if mapRepoErr(h, w, err) {
+			return
+		}
+		h.errorJSON(w, http.StatusInternalServerError, "failed to load session")
+		return
+	}
+	sub := subjectID(r.Context())
+	typ := tokenType(r.Context())
+	if typ == service.TokenTypePatient && session.PatientID != sub {
+		h.errorJSON(w, http.StatusForbidden, "forbidden")
+		return
+	}
+	h.writeJSON(w, http.StatusOK, session)
+}
+
+// EndTelemedicineSession marks a session as completed and sets ended_at.
+// Both patients and org users (doctors) may end a session.
+func (h *Handler) EndTelemedicineSession(w http.ResponseWriter, r *http.Request) {
+	sessionID := r.PathValue("id")
+	session, err := h.svcs.PatientPortal.GetTelemedicineSessionByID(r.Context(), sessionID)
+	if err != nil {
+		if mapRepoErr(h, w, err) {
+			return
+		}
+		h.errorJSON(w, http.StatusInternalServerError, "failed to load session")
+		return
+	}
+	sub := subjectID(r.Context())
+	typ := tokenType(r.Context())
+	if typ == service.TokenTypePatient && session.PatientID != sub {
+		h.errorJSON(w, http.StatusForbidden, "forbidden")
+		return
+	}
+	updated, err := h.svcs.PatientPortal.EndTelemedicineSession(r.Context(), sessionID)
+	if err != nil {
+		if mapRepoErr(h, w, err) {
+			return
+		}
+		h.errorJSON(w, http.StatusInternalServerError, "failed to end session")
+		return
+	}
+	h.writeJSON(w, http.StatusOK, updated)
+}
+
+// CancelTelemedicineSession cancels a pending session. Only the owning patient
+// may cancel, and only while the session is still pending.
+func (h *Handler) CancelTelemedicineSession(w http.ResponseWriter, r *http.Request) {
+	sessionID := r.PathValue("id")
+	patientID := subjectID(r.Context())
+	updated, err := h.svcs.PatientPortal.CancelTelemedicineSession(r.Context(), sessionID, patientID)
+	if err != nil {
+		if mapRepoErr(h, w, err) {
+			return
+		}
+		h.errorJSON(w, http.StatusInternalServerError, "failed to cancel session")
+		return
+	}
+	h.writeJSON(w, http.StatusOK, updated)
+}
+

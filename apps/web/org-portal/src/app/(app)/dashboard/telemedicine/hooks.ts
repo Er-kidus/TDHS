@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef, useEffect } from "react";
 import {
   Artifact,
   Doctor,
@@ -253,8 +253,19 @@ export function useSpeechRecognition(
   const [recognition, setRecognition] = useState<
     BrowserSpeechRecognition | null
   >(null);
+  const shouldListenRef = useRef(false);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
 
-  const start = () => {
+  const onTranscriptRef = useRef(onTranscript);
+  const onErrorRef = useRef(onError);
+
+  useEffect(() => {
+    onTranscriptRef.current = onTranscript;
+    onErrorRef.current = onError;
+  }, [onTranscript, onError]);
+
+  const start = useCallback(() => {
+    shouldListenRef.current = true;
     const speechWindow = window as Window & {
       SpeechRecognition?: new () => BrowserSpeechRecognition;
       webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
@@ -267,15 +278,14 @@ export function useSpeechRecognition(
         : undefined;
 
     if (!SpeechRecognitionCtor) {
-      onError(
+      onErrorRef.current(
         "Browser speech recognition is unavailable. You can still add manual transcript lines."
       );
       return;
     }
 
-    if (recognition) {
-      recognition.stop();
-      setRecognition(null);
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
     }
 
     const rec = new SpeechRecognitionCtor();
@@ -283,7 +293,7 @@ export function useSpeechRecognition(
     rec.interimResults = false;
     rec.lang = "en-US";
 
-    rec.onresult = (event) => {
+    rec.onresult = (event: any) => {
       for (
         let idx = event.resultIndex;
         idx < event.results.length;
@@ -297,35 +307,52 @@ export function useSpeechRecognition(
         ).trim();
         if (!text) continue;
 
-        onTranscript(text);
+        onTranscriptRef.current(text);
       }
     };
 
-    rec.onerror = (event) => {
-      onError(
-        `AI scribe stopped: ${String(
-          event?.error || "speech recognition error"
-        )}`
-      );
-      setIsListening(false);
+    rec.onerror = (event: any) => {
+      const err = event?.error;
+      if (err !== "aborted" && err !== "no-speech") {
+        onErrorRef.current(
+          `AI scribe stopped: ${String(
+            err || "speech recognition error"
+          )}`
+        );
+      }
     };
 
     rec.onend = () => {
-      setIsListening(false);
+      if (shouldListenRef.current) {
+        try {
+          rec.start();
+        } catch {
+          setIsListening(false);
+        }
+      } else {
+        setIsListening(false);
+      }
     };
 
-    rec.start();
-    setRecognition(rec);
-    setIsListening(true);
-  };
+    try {
+      rec.start();
+      recognitionRef.current = rec;
+      setRecognition(rec);
+      setIsListening(true);
+    } catch (e) {
+      console.warn("Could not start speech recognition:", e);
+    }
+  }, []);
 
-  const stop = () => {
-    if (recognition) {
-      recognition.stop();
+  const stop = useCallback(() => {
+    shouldListenRef.current = false;
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
       setRecognition(null);
     }
     setIsListening(false);
-  };
+  }, []);
 
   return { isListening, start, stop };
 }

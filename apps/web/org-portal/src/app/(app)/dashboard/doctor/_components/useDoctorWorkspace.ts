@@ -14,6 +14,7 @@ export function useDoctorWorkspace() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [queueEntries, setQueueEntries] = useState<QueueEntry[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [currentUser, setCurrentUser] = useState<{ id: string; role: string } | null>(null);
   const [workflow, setWorkflow] = useState<WorkflowPayload>(EMPTY_WORKFLOW);
   const [loading, setLoading] = useState(true);
   const [loadingError, setLoadingError] = useState("");
@@ -27,18 +28,20 @@ export function useDoctorWorkspace() {
     setLoadingError("");
 
     try {
-      const [docsRes, appointmentsRes, queuesRes, patientsRes] = await Promise.all([
+      const [docsRes, appointmentsRes, queuesRes, patientsRes, meRes] = await Promise.all([
         fetch("/api/org/doctors", { cache: "no-store" }),
         fetch("/api/appointments?limit=200", { cache: "no-store" }),
         fetch("/api/org/queues", { cache: "no-store" }),
         fetch("/api/org/patients?limit=300", { cache: "no-store" }),
+        fetch("/api/org/me", { cache: "no-store" }),
       ]);
 
-      const [docsData, appointmentsData, queueData, patientsData] = await Promise.all([
+      const [docsData, appointmentsData, queueData, patientsData, meData] = await Promise.all([
         readJsonResponse(docsRes),
         readJsonResponse(appointmentsRes),
         readJsonResponse(queuesRes),
         readJsonResponse(patientsRes),
+        readJsonResponse(meRes),
       ]);
       const errors: string[] = [];
 
@@ -66,6 +69,9 @@ export function useDoctorWorkspace() {
         errors.push(`[${patientsRes.status}] Patients: ${getErrorMessage(patientsData, "Unable to load patients")}`);
       }
 
+      if (meRes.ok && meData) setCurrentUser(meData as { id: string; role: string });
+      else setCurrentUser(null);
+
       if (errors.length > 0) {
         setLoadingError(`API Connection Issues - ${errors.join(" | ")} - Check that the backend API is running on http://localhost:8000`);
       }
@@ -85,13 +91,14 @@ export function useDoctorWorkspace() {
     return appointments
       .filter((item) => item.status !== "telemedicine_waiting")
       .filter((item) => ACTIVE_QUEUE_STATUSES.includes(item.status))
+      .filter((item) => !currentUser || !item.doctor_id || item.doctor_id === currentUser.id)
       .sort((left, right) => {
         const leftQueue = queueLookup.get(left.id)?.position ?? Number.MAX_SAFE_INTEGER;
         const rightQueue = queueLookup.get(right.id)?.position ?? Number.MAX_SAFE_INTEGER;
         if (leftQueue !== rightQueue) return leftQueue - rightQueue;
         return new Date(left.scheduled_at).getTime() - new Date(right.scheduled_at).getTime();
       });
-  }, [appointments, queueLookup]);
+  }, [appointments, queueLookup, currentUser]);
 
   useEffect(() => {
     if (!organizationQueue.length) {

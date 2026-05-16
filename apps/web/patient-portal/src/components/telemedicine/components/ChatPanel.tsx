@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Textarea } from '../../ui/textarea';
-import { useDataChannel } from '@livekit/components-react';
+'use client';
 
-type TelemedicineMessage = {
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { RefreshCw, Send } from 'lucide-react';
+
+type Message = {
   id: string;
   sender: string;
   channel: string;
@@ -10,94 +11,175 @@ type TelemedicineMessage = {
   created_at?: string;
 };
 
+type ChatPanelProps = {
+  chatChannel: string;
+  displayName: string;
+  messages: Message[];
+  onMessagesUpdate: (msgs: Message[]) => void;
+  /** Set to true while the call is live — enables auto-polling every 5 s */
+  autoRefresh?: boolean;
+};
+
 export default function ChatPanel({
   chatChannel,
   displayName,
   messages,
   onMessagesUpdate,
-}: {
-  chatChannel: string;
-  displayName: string;
-  messages: TelemedicineMessage[];
-  onMessagesUpdate: (next: TelemedicineMessage[]) => void;
-}) {
+  autoRefresh = true,
+}: ChatPanelProps) {
   const [input, setInput] = useState('');
-  const { send, message } = useDataChannel(chatChannel, (msg) => {
-    // handled by hook; callback kept for typings
-  }) as any;
+  const [sending, setSending] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [sendError, setSendError] = useState('');
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    if (!message) return;
+  // ── Fetch messages ─────────────────────────────────────────────────────
+
+  const fetchMessages = useCallback(async (quiet = false) => {
+    if (!chatChannel) return;
+    if (!quiet) setRefreshing(true);
     try {
-      const text = new TextDecoder().decode(message.data || new Uint8Array());
-      const parsed = JSON.parse(text);
-      if (parsed && parsed.channel === chatChannel) {
-        onMessagesUpdate([...messages, parsed]);
-      }
-    } catch {
-      // ignore parse errors
+      const res = await fetch(
+        `/api/messages?limit=100&channel=${encodeURIComponent(chatChannel)}`,
+        { cache: 'no-store' }
+      );
+      if (!res.ok) return;
+      const data = await res.json() as Message[];
+      onMessagesUpdate(Array.isArray(data) ? data : []);
+    } catch { /* ignore network blips */ } finally {
+      if (!quiet) setRefreshing(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [message]);
+  }, [chatChannel, onMessagesUpdate]);
 
-  async function handleSend() {
-    const trimmed = input.trim();
-    if (!trimmed) return;
-    const payload = {
-      id: `local-${Date.now()}`,
-      sender: displayName || 'Patient',
-      channel: chatChannel,
-      content: trimmed,
-      created_at: new Date().toISOString(),
-    } as TelemedicineMessage;
-    // optimistic update
-    onMessagesUpdate([...messages, payload]);
-    setInput('');
+  // Initial load
+  useEffect(() => {
+    void fetchMessages();
+  }, [fetchMessages]);
+
+  // Auto-poll every 5 s while active
+  useEffect(() => {
+    if (!autoRefresh || !chatChannel) return;
+    pollingRef.current = setInterval(() => void fetchMessages(true), 5000);
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, [autoRefresh, chatChannel, fetchMessages]);
+
+  // Scroll to bottom on new messages
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length]);
+
+  // ── Send ───────────────────────────────────────────────────────────────
+
+  async function send() {
+    const text = input.trim();
+    if (!text || !chatChannel || sending) return;
+    setSending(true);
+    setSendError('');
     try {
-      if (send) {
-        const encoder = new TextEncoder();
-        await send(encoder.encode(JSON.stringify(payload)), { topic: chatChannel });
-      }
-      // persist to server for history
-      await fetch('/api/messages', {
+      const res = await fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      }).catch(() => null);
+        body: JSON.stringify({
+          sender: displayName || 'Patient',
+          channel: chatChannel,
+          content: text,
+        }),
+      });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null) as { error?: string } | null;
+        throw new Error(payload?.error ?? 'Unable to send message');
+      }
+      setInput('');
+      await fetchMessages();
     } catch (err) {
-      // ignore send errors silently; messages remain optimistically shown
+      setSendError(err instanceof Error ? err.message : 'Unable to send message');
+    } finally {
+      setSending(false);
     }
   }
 
-  const lastItems = useMemo(() => messages.slice(-100), [messages]);
+  // ── Render ─────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 rounded-3xl border border-border bg-card p-4 text-card-foreground">
+    <div className="flex h-full flex-col gap-3">
+      {/* Header */}
       <div className="flex items-center justify-between gap-2">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Live chat</p>
-          <p className="text-sm text-muted-foreground">Messages sync in real time while the call is active.</p>
-        </div>
-        <span className="rounded-full border border-border bg-background px-3 py-1 text-[11px] text-muted-foreground">
-          {lastItems.length} messages
-        </span>
+        <p className="text-sm font-medium text-white">
+          {messages.length} message{messages.length !== 1 ? 's' : ''}
+        </p>
+        <button
+          type="button"
+          onClick={() => void fetchMessages()}
+          disabled={refreshing}
+          className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-white/10 disabled:opacity-50"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
       </div>
 
-      <div className="max-h-[55vh] flex-1 space-y-3 overflow-y-auto rounded-2xl border border-border bg-background p-3">
-        {lastItems.map((messageItem) => (
-          <article key={messageItem.id} className="rounded-2xl border border-border bg-card px-3 py-2 shadow-sm">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold text-foreground">{messageItem.sender}</p>
-              {messageItem.created_at ? <p className="text-[11px] text-muted-foreground">{new Date(messageItem.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p> : null}
-            </div>
-            <p className="mt-1 text-sm leading-relaxed text-foreground">{messageItem.content}</p>
-          </article>
-        ))}
-        {lastItems.length === 0 ? <p className="text-sm text-muted-foreground">No messages yet for this session.</p> : null}
+      {/* Messages */}
+      <div className="flex-1 space-y-2 overflow-y-auto rounded-2xl border border-white/10 bg-slate-950/60 p-3">
+        {messages.length === 0 ? (
+          <p className="py-4 text-center text-sm text-slate-500">No messages yet. Say hello!</p>
+        ) : (
+          messages.map((msg) => {
+            const isOwn = msg.sender === displayName;
+            return (
+              <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                <div
+                  className={`max-w-[80%] rounded-2xl px-3 py-2 ${
+                    isOwn
+                      ? 'bg-cyan-600 text-white'
+                      : 'border border-white/10 bg-slate-800 text-slate-100'
+                  }`}
+                >
+                  {!isOwn && (
+                    <p className="mb-1 text-[10px] font-semibold text-slate-400">{msg.sender}</p>
+                  )}
+                  <p className="text-sm leading-relaxed">{msg.content}</p>
+                  {msg.created_at && (
+                    <p className={`mt-1 text-[10px] ${isOwn ? 'text-cyan-200' : 'text-slate-500'}`}>
+                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+        <div ref={bottomRef} />
       </div>
+
+      {/* Error */}
+      {sendError && (
+        <p className="rounded-2xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+          {sendError}
+        </p>
+      )}
+
+      {/* Input */}
       <div className="flex gap-2">
-        <Textarea value={input} onChange={(e) => setInput(e.target.value)} className="min-h-20 flex-1 border-border bg-background text-foreground placeholder:text-muted-foreground" placeholder="Type a message to the care team..." />
-        <button type="button" onClick={() => void handleSend()} disabled={!input.trim()} className="self-end rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60">Send</button>
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }}
+          placeholder="Type a message…"
+          disabled={sending}
+          className="flex-1 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none transition focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 disabled:opacity-60"
+        />
+        <button
+          type="button"
+          onClick={() => void send()}
+          disabled={sending || !input.trim()}
+          className="inline-flex items-center justify-center rounded-2xl bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-cyan-500 disabled:opacity-50"
+        >
+          <Send className="h-4 w-4" />
+        </button>
       </div>
     </div>
   );

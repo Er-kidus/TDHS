@@ -1,0 +1,9 @@
+license_number,first_name,last_name,role,status,issued_date,expiry_date
+LIC-MD-1001,Sarah,Jenkins,doctor,active,2023-01-15,2028-01-14
+LIC-RN-2005,Michael,Chen,nurse,active,2022-06-20,2027-06-19
+LIC-PH-3012,Emily,Rodriguez,pharmacist,active,2024-02-10,2029-02-09
+LIC-LT-4008,David,Kim,lab,active,2021-11-05,2026-11-04
+LIC-MD-1055,James,Wilson,doctor,expired,2018-03-12,2023-03-11
+LIC-RN-2088,Lisa,Patel,nurse,suspended,2020-08-22,2025-08-21
+LIC-RC-5001,Robert,Taylor,reception,active,2023-09-01,2028-08-31
+LIC-IT-6002,Amanda,White,staff,active,2024-01-05,2029-01-04

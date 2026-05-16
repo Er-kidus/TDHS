@@ -74,7 +74,8 @@ services:
         "7881",
         "--rtc.tcp_port",
         "7881",
-        "--rtc.allow_tcp_fallback"
+        "--rtc.allow_tcp_fallback",
+        "--rtc.use_external_ip"
       ]
     ports:
       - "7880:7880"
@@ -98,10 +99,12 @@ services:
       DATABASE_URL: "postgres://tenadam:tenadam_dev@postgres:5432/tenadam?sslmode=disable"
       REDIS_URL: "redis://redis:6379"
       JWT_SECRET: "dev-jwt-secret"
-      LIVEKIT_URL: "${LIVEKIT_URL:-ws://127.0.0.1:7880}"
-      LIVEKIT_PUBLIC_URL: "${LIVEKIT_PUBLIC_URL:-}"
-      LIVEKIT_API_KEY: "${LIVEKIT_API_KEY:-devkey}"
-      LIVEKIT_API_SECRET: "${LIVEKIT_API_SECRET:-secret}"
+      LIVEKIT_URL: "${LIVEKIT_URL:-wss://tdhs-a2li0kk2.livekit.cloud}"
+      LIVEKIT_PUBLIC_URL: "${LIVEKIT_PUBLIC_URL:-wss://tdhs-a2li0kk2.livekit.cloud}"
+      LIVEKIT_API_KEY: "${LIVEKIT_API_KEY:-API39odM6jrvH5e}"
+      LIVEKIT_API_SECRET: "${LIVEKIT_API_SECRET:-eflLDyAeK8di6lVmfirOMfOcesmiy6vzvble4DHnfOiI}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-AIzaSyA89grwimpUIqXZ8kRZNNgAp2S4P5p9REE}"
+      GEMINI_MODEL: "${GEMINI_MODEL:-gemini-2.5-flash}"
 
   # ── Core Services ────────────────────────────
   auth-service:
@@ -150,6 +153,8 @@ services:
       - api-gateway
     environment:
       API_BASE_URL: "http://api-gateway:8080"
+      LIVEKIT_PROXY_TARGET: "http://livekit:7880"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-AIzaSyA89grwimpUIqXZ8kRZNNgAp2S4P5p9REE}"
 
   org-portal:
     build:
@@ -161,6 +166,9 @@ services:
       - api-gateway
     environment:
       API_BASE_URL: "http://api-gateway:8080"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-AIzaSyA89grwimpUIqXZ8kRZNNgAp2S4P5p9REE}"
+      LIVEKIT_PROXY_TARGET: "http://livekit:7880"
+      DATABASE_URL: "postgres://tenadam:tenadam_dev@postgres:5432/tenadam?sslmode=disable"
 
   front-door:
     build:
